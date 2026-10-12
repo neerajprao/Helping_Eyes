@@ -55,6 +55,18 @@ video[hidden], #still[hidden] { display: none; }
 #overlay { position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; }
 .camera-message { color: #fff; padding: 24px; margin: 0; }
 
+/* The shutter: a big round button on the camera picture that takes the photo now */
+.shutter {
+  position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%);
+  width: 68px; height: 68px; min-height: 0; padding: 0; border-radius: 50%;
+  background: #fff; border: 5px solid rgba(255, 255, 255, 0.55); box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.45);
+  justify-content: center;
+}
+.shutter:active { background: #d9dde3; transform: translateX(-50%) scale(0.94); }
+.shutter:disabled { opacity: 0.6; }
+.camera.flash::after { content: ""; position: absolute; inset: 0; background: #fff; opacity: 0; animation: flash 0.35s ease-out; pointer-events: none; }
+@keyframes flash { from { opacity: 0.85; } to { opacity: 0; } }
+
 .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 12px; }
 
 button, .button {

@@ -6,8 +6,8 @@ What each button on the page does, and what you can say or type.
 
 | Button | Key | What it does |
 |---|---|---|
-| **Capture now** | `C` | Takes a photo of what the camera sees right now and reads the text on it. In book mode it is called **Read this page** and reads the page in view. On an uploaded photo in book mode, it reads that photo again. |
-| **New item** | `R` | Forgets the current item and goes back to the live camera (an uploaded photo is closed). Ready for the next thing. Same as saying "next". |
+| **Capture now** (and the round **shutter button** on the camera picture) | `C` | Takes a photo of what the camera sees right now, with a flash, and reads the text on it, whatever the spoken hints say. The photo then stays on the screen and the camera is switched off until you press **New item** or say "next" (if no text is found, the camera comes straight back). In book mode it is called **Read this page** and reads the page in view. On an uploaded photo in book mode, it reads that photo again. |
+| **New item** | `R` | Forgets the current item and goes back to the live camera (the photo that stayed on the screen, or an uploaded photo, is closed). Ready for the next thing. Same as saying "next". |
 | **Book mode** | `B` | Switches between normal mode (one item) and book mode (page by page, reading aloud). Same as saying "book mode" / "normal mode". |
 | **Upload photo** | – | Pick a picture from your device instead of using the camera. It is shown where the camera preview is, with sharpness, light and glare info. In book mode it is read like a camera page, with the reading overlay and highlight. |
 | **Uploaded photo is a two-page spread** | – | Tick it before uploading a photo of two facing pages, in normal mode, so they are split and read in order. |
@@ -51,5 +51,6 @@ Keys work when the cursor is not in the question box.
 - The page number and running title are announced before the page.
 - The line and word being spoken are highlighted on the picture.
 - Move the book mid-page and it carries on from the word it reached.
+- When the page opens the browser asks to use the camera and the microphone: allow both (listening itself starts only when you press **Listen**).
 - The voice is Sarah (an American female voice) made on your Mac, so it works without internet. If it is not set up, a free online voice speaks, and the browser's own voice is the last resort.
 - The language model groups the lines of a page into paragraphs before it is read, so a sentence that runs over a line, a column or a page is read without a pause, and a sidebar or box is read after the main text. If the model cannot answer, the page is read as laid out.

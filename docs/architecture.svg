@@ -7,15 +7,18 @@
 <rect x="770" y="70" width="700" height="675" rx="14" fill="#fff7ed" stroke="#9ca3af"/>
 <text x="1120.0" y="98" text-anchor="middle" font-size="18" font-weight="700" fill="#111827">Voice / typing path</text>
 <rect x="210" y="105" width="320" height="50" rx="8" fill="#dbeafe" stroke="#1d4ed8" stroke-width="1.5"/>
-<text x="370.0" y="135.0" text-anchor="middle" font-size="15" font-weight="700" fill="#111827">INPUT 1: camera or uploaded photo</text>
+<text x="370.0" y="125.0" text-anchor="middle" font-size="15" font-weight="700" fill="#111827">INPUT 1: camera (or its shutter button)</text>
+<text x="370.0" y="145.0" text-anchor="middle" font-size="13" font-weight="400" fill="#111827">or an uploaded photo</text>
 <rect x="210" y="190" width="320" height="80" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.5"/>
-<text x="370.0" y="215.0" text-anchor="middle" font-size="15" font-weight="700" fill="#111827">vision.py, part D (the coach)</text>
-<text x="370.0" y="235.0" text-anchor="middle" font-size="13" font-weight="400" fill="#111827">looks for text, checks blur and glare</text>
-<text x="370.0" y="255.0" text-anchor="middle" font-size="13" font-weight="400" fill="#111827">(uploads: shown on the photo too)</text>
-<rect x="45" y="200" width="140" height="60" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.5"/>
-<text x="115.0" y="215.0" text-anchor="middle" font-size="15" font-weight="700" fill="#111827">Hint</text>
-<text x="115.0" y="235.0" text-anchor="middle" font-size="13" font-weight="400" fill="#111827">move closer, left,</text>
-<text x="115.0" y="255.0" text-anchor="middle" font-size="13" font-weight="400" fill="#111827">hold still</text>
+<text x="370.0" y="205.0" text-anchor="middle" font-size="15" font-weight="700" fill="#111827">vision.py, part D (the coach)</text>
+<text x="370.0" y="225.0" text-anchor="middle" font-size="13" font-weight="400" fill="#111827">looks for text, checks blur and glare</text>
+<text x="370.0" y="245.0" text-anchor="middle" font-size="13" font-weight="400" fill="#111827">a sheet that fills the picture is close enough</text>
+<text x="370.0" y="265.0" text-anchor="middle" font-size="13" font-weight="400" fill="#111827">(uploads: shown on the photo too)</text>
+<rect x="45" y="190" width="140" height="84" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.5"/>
+<text x="115.0" y="207.0" text-anchor="middle" font-size="15" font-weight="700" fill="#111827">Hint</text>
+<text x="115.0" y="227.0" text-anchor="middle" font-size="13" font-weight="400" fill="#111827">left, right, hold still,</text>
+<text x="115.0" y="247.0" text-anchor="middle" font-size="13" font-weight="400" fill="#111827">move closer only</text>
+<text x="115.0" y="267.0" text-anchor="middle" font-size="13" font-weight="400" fill="#111827">if text is unclear</text>
 <rect x="160" y="330" width="240" height="50" rx="8" fill="#fff" stroke="#1d4ed8" stroke-width="1.5"/>
 <text x="280.0" y="350.0" text-anchor="middle" font-size="15" font-weight="700" fill="#111827">Full photo</text>
 <text x="280.0" y="370.0" text-anchor="middle" font-size="13" font-weight="400" fill="#111827">normal mode: text is steady</text>
@@ -82,7 +85,7 @@
 <path d="M570,538 L570,550" fill="none" stroke="#374151" stroke-width="1.8" marker-end="url(#a)"/>
 <path d="M280,580 L300,665" fill="none" stroke="#374151" stroke-width="1.8" marker-end="url(#a)"/>
 <path d="M570,605 L470,665" fill="none" stroke="#374151" stroke-width="1.8" marker-end="url(#a)"/>
-<path d="M115,260 L115,800" fill="none" stroke="#374151" stroke-width="1.8" marker-end="url(#a)"/>
+<path d="M115,274 L115,800" fill="none" stroke="#374151" stroke-width="1.8" marker-end="url(#a)"/>
 <path d="M700,578 L750,578 L750,800" fill="none" stroke="#374151" stroke-width="1.8" marker-end="url(#a)"/>
 <text x="716" y="640" text-anchor="middle" font-size="12" fill="#374151" stroke="#fff" stroke-width="4" paint-order="stroke">read the page</text>
 <path d="M945,155 L945,195" fill="none" stroke="#374151" stroke-width="1.8" marker-end="url(#a)"/>

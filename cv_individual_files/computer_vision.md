@@ -51,7 +51,7 @@ The four parts:
 | Part | Question it answers | Main functions |
 |---|---|---|
 | **A** | What does the text say, and where is each line and word? | `recognize_text`, `find_text_region`, `read_text_enhanced` |
-| **B** | Is the picture good? Can we make it better? | `assess_quality`, `find_page_quad`, `warp_page`, `estimate_dewarp`, `estimate_skew`, `enhance_tone`, `binarize` |
+| **B** | Is the picture good? Can we make it better? | `assess_quality`, `find_page_quad`, `page_fill`, `warp_page`, `estimate_dewarp`, `estimate_skew`, `enhance_tone`, `binarize` |
 | **C** | Book mode: when, where, in what order? | `PageTurnDetector`, `split_spread`, `split_page_parts`, `xy_cut`, `read_page`, `continue_from` |
 | **D** | Live coaching and the final decision | `LiveGuide`, `BookWatcher`, `BookReader` |
 
@@ -761,7 +761,7 @@ The overlap rectangle is: left = max of lefts, top = max of tops, right = min of
 
 All distances scale with `height / 720`, so they work at any resolution.
 
-1. **Too small?** If the **median line height** is under `14 × h/720` pixels → **"Move closer"**. (Median ignores a few odd lines.)
+1. **Too small and not read well?** If the **median line height** is under `14 × h/720` pixels **and** the OCR is not sure of the text → **"Move closer"**. (Median ignores a few odd lines. "Sure" means the mean confidence of the lines, each counted by its letters, is at least `READ_WELL = 0.8`; small text that is read well gets no hint and goes on to HOLD and capture. A third test keeps the hint away when **the sheet already fills the picture**: `page_fill()` shrinks the frame to 320 px wide, blurs it, takes the Otsu threshold (paper is bright), closes the print away with a 9×9 square, and adds up the areas of the big bright regions (each over 3 % of the frame); if that is at least `PAGE_FILLS = 0.75` of the frame, a page, an open book or a lit tablet screen fills the view and is close enough. It is rough on purpose and costs about 1 ms, and it is only computed when the other two tests would have said "Move closer".)
 2. **Touching an edge and far off-centre?** The text box touches the guide box edge (within 5 px) and its centre is more than 80 px from the guide's centre:
    - touching left/right → **"Move Left"** or **"Move Right"** (the hint says which way the *page* should move so the picture is centred);
    - touching top/bottom → **"Move Up"** or **"Move Down"**.
@@ -860,7 +860,7 @@ Comparison with the app's own glare test:
 | paragraph indent **> max(0.6 × line h, 6 px)** | `xy_cut` | new paragraph |
 | word run **≥ 3**, overlap **≥ 0.4** | `continue_from` | same page |
 | same page when overlap **≥ 0.12** | `MOVED_SAME_PAGE` | too garbled to line up but same page |
-| text height **< 14 px (of 720)** | `MIN_TEXT_HEIGHT` | "Move closer" |
+| text height **< 14 px (of 720)**, mean confidence **< 0.8**, and the sheet covers **< 75 %** of the frame | `MIN_TEXT_HEIGHT`, `READ_WELL`, `PAGE_FILLS` | "Move closer" (small text that is read well, or a sheet that fills the picture, needs no hint) |
 | inside guide **≥ 65 %** | `LiveGuide` | text in view |
 | hold **0.5 s**, coach **3 s**, rearm **1.5 s** | `LiveGuide` | timing of capture |
 | speech chunk **≤ 600** characters | `speech_chunks` | one utterance |

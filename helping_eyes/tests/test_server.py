@@ -142,6 +142,13 @@ def test_book_page_endpoint_reads_a_page_and_resumes():
     assert "haven't captured" not in spoken(ask("read everything", sid))
 
 
+def test_the_page_and_its_files_are_always_revalidated_so_the_html_and_the_script_never_get_out_of_step():
+    for path in ("/", "/static/app.js", "/static/style.css"):
+        res = client.get(path)
+        assert res.status_code == 200 and res.headers["cache-control"] == "no-cache", path
+    assert 'id="shutter"' in client.get("/").text and "shutter" in client.get("/static/app.js").text
+
+
 def test_tts_endpoint_returns_audio_and_reports_failure():
     original = server.commands.synthesize
     server.commands.synthesize = lambda text: b"\xff\xf3audio"

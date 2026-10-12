@@ -68,6 +68,16 @@ _SID = re.compile(r"^[A-Za-z0-9_-]{8,64}$")
 app = FastAPI(title="Helping Eyes", docs_url=None, redoc_url=None)
 app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")
 
+
+@app.middleware("http")
+async def revalidate_the_page(request: Request, call_next):
+    """The page and its files must be checked with the server on every load (a cheap "not modified" when they have not
+    changed). Without this a browser may keep an old index.html for hours next to a new app.js, and the two no longer fit."""
+    response = await call_next(request)
+    if request.url.path == "/" or request.url.path.startswith("/static/"):
+        response.headers["Cache-Control"] = "no-cache"
+    return response
+
 # One OCR job at a time: the OCR engines are not meant to be called from several threads at once
 _ocr_lock = threading.Lock()
 

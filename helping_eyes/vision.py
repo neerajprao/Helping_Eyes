@@ -327,6 +327,24 @@ def find_page_quad(frame: np.ndarray, min_area: float = 0.25) -> Optional[np.nda
     return quad
 
 
+def page_fill(frame: np.ndarray) -> float:
+    """
+    How much of the picture the sheet fills, 0 to 1: a page, a book spread or a lit tablet screen. The paper is the
+    bright region (Otsu), the print is closed away, and the big bright regions are added up. Rough on purpose, and
+    cheap (a small copy of the picture): it only has to tell "the sheet fills the picture" from "the sheet is small".
+    """
+    h, w = frame.shape[:2]
+    small = cv2.resize(frame, (320, max(1, round(h * 320 / w))), interpolation=cv2.INTER_AREA) if w > 320 else frame
+    gray = cv2.cvtColor(small, cv2.COLOR_BGR2GRAY) if small.ndim == 3 else small
+    gray = cv2.GaussianBlur(gray, (5, 5), 0)
+    _, bright = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    bright = cv2.morphologyEx(bright, cv2.MORPH_CLOSE, np.ones((9, 9), np.uint8))
+    contours, _ = cv2.findContours(bright, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    total = gray.shape[0] * gray.shape[1]
+    area = sum(cv2.contourArea(c) for c in contours if cv2.contourArea(c) > 0.03 * total)
+    return min(1.0, area / total)
+
+
 def _needs_warp(quad: np.ndarray, frame_shape) -> bool:
     """A page that is already square-on and fills the frame doesn't need warping."""
     h, w = frame_shape[:2]
@@ -1551,7 +1569,9 @@ def continue_from(old_text: str, old_pos: int, new_text: str,
 
 # ---- capture control (same values as the desktop app used) ----
 MIN_TEXT_CHARS = 8         # need this many characters to count as text
-MIN_TEXT_HEIGHT = 14       # px on a 720-line preview; smaller text -> "Move closer"
+MIN_TEXT_HEIGHT = 14       # px on a 720-line preview; smaller text -> "Move closer" ...
+READ_WELL = 0.8            # ... but only when the OCR is not this sure of it (mean confidence, 0-1): small text that is read well is fine
+PAGE_FILLS = 0.75          # ... and never when the sheet (page, book, tablet) fills this much of the picture: that is close enough
 HOLD_TIME = 0.5            # seconds the text must stay steady before capturing
 REARM_AFTER = 1.5          # seconds with no text in view before a new capture is allowed
 QUALITY_PATIENCE = 3.0     # seconds to coach about blur / glare before capturing anyway
@@ -1617,12 +1637,20 @@ class LiveGuide:
         return (ox2 - ox1) * (oy2 - oy1) / area if area > 0 else 0.0
 
     @staticmethod
-    def _guidance(box: Box, lines, w: int, h: int) -> str:
-        """Spoken hint to bring the text fully into view ("" when it's fine)."""
+    def _read_well(lines) -> bool:
+        """Did the OCR read the text with confidence? The mean confidence of its lines, each counted by its letters."""
+        weights = [max(len(l.text.strip()), 1) for l in lines]
+        return bool(lines) and sum(l.confidence * x for l, x in zip(lines, weights)) / sum(weights) >= READ_WELL
+
+    @staticmethod
+    def _guidance(box: Box, lines, w: int, h: int, frame: Optional[np.ndarray] = None) -> str:
+        """Spoken hint to bring the text fully into view ("" when it's fine). `frame` lets "Move closer" be skipped
+        when the sheet already fills the picture."""
         x1, y1, x2, y2 = box
         gx1, gy1, gx2, gy2 = GUIDE[0] * w, GUIDE[1] * h, GUIDE[2] * w, GUIDE[3] * h
         heights = sorted(l.box[3] - l.box[1] for l in lines)
-        if heights and heights[len(heights) // 2] < MIN_TEXT_HEIGHT * h / 720:
+        if (heights and heights[len(heights) // 2] < MIN_TEXT_HEIGHT * h / 720 and not LiveGuide._read_well(lines)
+                and not (frame is not None and page_fill(frame) >= PAGE_FILLS)):          # the cheap tests first
             return "Move closer"
         cx, cy = (x1 + x2) / 2, (y1 + y2) / 2
         gcx, gcy = (gx1 + gx2) / 2, (gy1 + gy2) / 2
@@ -1679,7 +1707,7 @@ class LiveGuide:
             # Already captured this item: stay quiet and wait for questions
             reply.update(state="CAPTURED", label="CAPTURED - ASK ME")
         elif box is not None:
-            hint = self._guidance(box, lines, w, h)
+            hint = self._guidance(box, lines, w, h, frame)
             if self._inside_guide(box, w, h) >= 0.65 and not hint:
                 if not self.is_stable:
                     self.is_stable = True

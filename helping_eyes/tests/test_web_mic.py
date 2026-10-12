@@ -38,6 +38,16 @@ Object.defineProperty(window, "speechSynthesis", { value: fakeSynth });
 window.SpeechSynthesisUtterance = function (text) { this.text = text; };
 // The server voice (/api/tts) returns audio that an <audio> element plays. Fake both: record the text, "play" for 5 ms.
 // window.__ttsDown = true makes /api/tts fail, so the browser voice (fakeSynth) takes over.
+window.__media = [];                                    // every camera / microphone request the page makes
+const realGetUserMedia = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+navigator.mediaDevices.getUserMedia = (constraints) => {
+  window.__media.push(JSON.stringify(constraints));
+  if (window.__noMic && constraints.audio) return Promise.reject(new DOMException("none", "NotFoundError"));     // no microphone
+  return realGetUserMedia(constraints);
+};
+// A first visit: the browser has not been asked about the microphone yet (the test browser reports "granted" for all)
+const realQuery = navigator.permissions.query.bind(navigator.permissions);
+navigator.permissions.query = (descriptor) => descriptor.name === "microphone" ? Promise.resolve({ state: "prompt" }) : realQuery(descriptor);
 const realFetch = window.fetch;
 window.fetch = (url, opts) => {
   if (String(url).includes("/api/ask")) window.__asked.push(JSON.parse(opts.body).question);
@@ -51,9 +61,24 @@ window.fetch = (url, opts) => {
     return Promise.resolve(new Response(new Blob(["x"], { type: "audio/mpeg" })));
   }
   if (String(url).includes("/api/health")) return Promise.resolve(new Response(JSON.stringify({ tts: true })));
+  if (String(url).includes("/api/capture")) {                  // a photo read by the server: window.__captureOk = false means "no text found"
+    const ok = window.__captureOk !== false;
+    return Promise.resolve(new Response(JSON.stringify({ ok, text: ok ? "hello world" : "", message: ok ? "Got it." : "I could not find any text.", seconds: 0.1, label: "" })));
+  }
+  if (String(url).includes("/api/quality")) {
+    return Promise.resolve(new Response(JSON.stringify({ quality: "sharp 200", problems: [], hint: "", lines: [], quads: [], box: null })));
+  }
   return realFetch(url, opts);
 };
-window.Audio = class { constructor() { this.duration = 0; } play() { setTimeout(() => { if (this.onended) this.onended(); }, 5); return Promise.resolve(); } pause() {} };
+window.Audio = class {
+  constructor() { this.duration = 0; }
+  play() {
+    if (window.__soundBlocked) return Promise.reject(new DOMException("blocked", "NotAllowedError"));    // a phone before the first tap
+    setTimeout(() => { if (this.onended) this.onended(); }, 5);
+    return Promise.resolve();
+  }
+  pause() {}
+};
 window.__say = (words, isFinal) => {                       // the speech engine "hears" something
   const rec = window.__recs[window.__recs.length - 1];
   const result = Object.assign([{ transcript: words }], { isFinal });
@@ -278,6 +303,68 @@ def scenario_browser_voice_takes_over_when_the_server_voice_fails(page):
     page.wait("window.__spoken.some((t) => t.endsWith('[browser]'))")  # still spoken, by the browser's voice
 
 
+def scenario_camera_and_microphone_are_asked_for_as_soon_as_the_page_opens(page):
+    # ONE request for both (a second request could freeze the camera on a phone)
+    page.wait("window.__media.some((c) => c.includes('\"video\"') && c.includes('\"audio\":true'))")
+    page.wait("cameraReady")
+    # asking only: the microphone is released at once and listening is still off until Listen is pressed
+    assert page.js("document.querySelector('video').srcObject.getAudioTracks().length") == 0
+    assert page.js("document.getElementById('mic').getAttribute('aria-pressed')") == "false"
+
+
+def scenario_the_photo_taken_stays_on_screen_and_the_camera_is_off_until_new_item(page):
+    page.wait("cameraReady")
+    page.js("document.getElementById('capture').click()")
+    page.wait("uploadView === true && capturedStill === true")
+    assert page.js("document.getElementById('video').hidden") is True                      # the picture taken replaces the video ...
+    assert page.js("document.getElementById('still').hidden") is False
+    assert page.js("document.getElementById('still').src.startsWith('blob:')") is True
+    assert page.js("cameraReady") is False and page.js("document.getElementById('video').srcObject") is None     # ... and the camera is off
+    page.wait("document.getElementById('captured-text').textContent === 'hello world'")    # and the photo was read
+    import time
+    time.sleep(1.5)                                                                         # it stays: nothing brings the camera back by itself
+    assert page.js("uploadView") is True and page.js("cameraReady") is False
+    page.js("document.getElementById('newitem').click()")                                   # New item
+    page.wait("uploadView === false && cameraReady === true")                              # back to the live camera
+    assert page.js("document.getElementById('still').hidden") is True
+
+
+def scenario_a_photo_with_no_text_brings_the_camera_back_at_once(page):
+    page.wait("cameraReady")
+    page.js("window.__captureOk = false")
+    page.js("document.getElementById('capture').click()")
+    page.wait("uploadView === false && cameraReady === true")                              # nothing read: try again with the camera
+    assert page.js("document.getElementById('still').hidden") is True
+
+
+def scenario_the_shutter_button_takes_the_photo_now(page):
+    page.wait("cameraReady")
+    page.wait("!document.getElementById('shutter').hidden")                  # shown while the live camera is in use
+    page.js("window.__captures = 0; document.getElementById('capture').addEventListener('click', () => window.__captures++)")
+    page.js("document.getElementById('shutter').click()")
+    assert page.js("window.__captures") == 1                                 # it does what Capture now does
+    assert page.js("document.querySelector('.camera').classList.contains('flash')")        # and flashes, so you see it was taken
+    page.js("showStill('data:image/gif;base64,R0lGODlhAQABAAAAACw=')")      # a photo is shown in place of the camera
+    page.wait("document.getElementById('shutter').hidden")                  # the shutter is gone then
+
+
+def scenario_the_camera_still_starts_when_there_is_no_microphone(page):
+    page.js("window.__noMic = true; window.__media.length = 0; stopCamera()")
+    page.js("startCamera(true)")
+    page.wait("cameraReady")
+    calls = page.js("window.__media")
+    assert '"audio":true' in calls[0] and '"audio":false' in calls[1]          # asked for both, then the camera alone
+
+
+def scenario_a_phone_that_blocks_sound_does_not_freeze_the_camera_or_the_microphone(page):
+    page.js("window.__soundBlocked = true")
+    page.js("document.getElementById('question').value = 'next'; document.getElementById('ask-form').requestSubmit()")
+    page.wait("soundBlocked !== null")                         # the phone blocked the sound: the sentence waits for a tap
+    assert page.js("isSpeaking()") is False                    # waiting for a tap is not speaking: frames and listening go on
+    page.js("window.__soundBlocked = false; document.dispatchEvent(new Event('click'))")      # the first tap
+    page.wait("soundBlocked === null")
+
+
 def scenario_a_hung_voice_request_is_answered_by_a_second_one(page):
     page.js("window.__ttsHangFirst = true")
     page.js("document.getElementById('question').value = 'next'; document.getElementById('ask-form').requestSubmit()")
@@ -292,6 +379,30 @@ def run_scenario(scenario):
         print(f"SKIP  {scenario.__name__}: Chrome is not installed")
         return
     with_page(scenario)
+
+
+def test_the_camera_and_the_microphone_are_asked_for_as_soon_as_the_page_opens():
+    run_scenario(scenario_camera_and_microphone_are_asked_for_as_soon_as_the_page_opens)
+
+
+def test_the_photo_taken_stays_on_screen_and_the_camera_is_off_until_new_item():
+    run_scenario(scenario_the_photo_taken_stays_on_screen_and_the_camera_is_off_until_new_item)
+
+
+def test_a_photo_with_no_text_brings_the_camera_back_at_once():
+    run_scenario(scenario_a_photo_with_no_text_brings_the_camera_back_at_once)
+
+
+def test_the_shutter_button_takes_the_photo_now():
+    run_scenario(scenario_the_shutter_button_takes_the_photo_now)
+
+
+def test_the_camera_still_starts_when_there_is_no_microphone():
+    run_scenario(scenario_the_camera_still_starts_when_there_is_no_microphone)
+
+
+def test_a_phone_that_blocks_sound_does_not_freeze_the_camera_or_the_microphone():
+    run_scenario(scenario_a_phone_that_blocks_sound_does_not_freeze_the_camera_or_the_microphone)
 
 
 def test_a_voice_request_that_never_answers_is_replaced_by_a_second_one():

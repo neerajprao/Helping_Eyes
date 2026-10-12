@@ -20,7 +20,7 @@ give it a public `https` address with a free tunnel. No account, no card.
 1. Plug in the charger and keep the lid open.
 2. Run `.venv/bin/python run.py --share`. On a Mac, `run.py` also stops the laptop from sleeping when idle.
 3. Wait for "Ready: the text reader has loaded". The public `https` address is printed: your fixed ngrok address (it never changes), or a `https://...trycloudflare.com` one if `NGROK_DOMAIN` is not set.
-4. Open that address on a phone or send it to anyone. Allow the camera and microphone (they need `https`). Use Chrome or Edge: speech recognition needs one of them.
+4. Open that address on a phone or send it to anyone. Allow the camera and microphone when the browser asks as the page opens (they need `https`). Use Chrome or Edge: speech recognition needs one of them.
 5. Press Ctrl+C when you are done. The address stops working.
 
 To use the app only on your Mac, run `python run.py` without `--share`. It opens Chrome at `localhost`.

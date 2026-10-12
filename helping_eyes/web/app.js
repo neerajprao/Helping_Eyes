@@ -46,7 +46,9 @@ const voiceKnown = fetch("/api/health").then((r) => r.json()).then((h) => {
 }).catch(() => {});
 const serverVoiceUsable = () => serverVoice || performance.now() > serverVoiceRetry;
 
-const isSpeaking = () => !!speakingNow || speechQueue.length > 0;
+// A sentence that waits for the first tap (the phone blocks sound until then) is not speaking: the camera guidance
+// and the microphone must not wait for a tap
+const isSpeaking = () => (!!speakingNow || speechQueue.length > 0) && !soundBlocked;
 
 // A number above 9999 is nearly always a serial, batch or phone number: say its digits one by one,
 // never "twelve thousand three hundred...". Comma-grouped forms (12,345,678) count too.
@@ -59,10 +61,10 @@ function spokenForm(text) {
 }
 
 // start: for a piece of a book page, its offset in the page text (enables the reading position)
-function say(text, { el = null, start = null } = {}) {
+function say(text, { el = null, start = null, optional = false } = {}) {
   if (!text || !text.trim()) return;
   if (start !== null) start += text.length - text.trimStart().length;
-  speechQueue.push({ text: text.trim(), el, start, audio: null });
+  speechQueue.push({ text: text.trim(), el, start, audio: null, optional });
   lastSpeechActivity = performance.now();
   if (recognizer) recognizer.abort();      // the microphone must not hear the app
   prefetch();
@@ -238,8 +240,10 @@ function playAudio(item, url, finished) {
     audio.onended = audio.onerror = audio.ontimeupdate = audio.onplay = null;
     if (speakingNow !== item) return;
     if (err && err.name === "NotAllowedError") {
-      // The phone blocks sound until the page has been tapped: keep this sentence and play it at the next tap
+      // The phone blocks sound until the page has been tapped. A greeting is simply dropped; any other sentence is
+      // kept and played at the next tap.
       item.stop = null; player = null;
+      if (item.optional) { URL.revokeObjectURL(url); return finished(); }
       soundBlocked = () => playAudio(item, url, finished);
       setStatus("Tap the screen once to turn the voice on.");
       return;
@@ -329,19 +333,41 @@ let uploadView = false;       // an uploaded photo is shown in place of the came
 
 let cameraFailed = "";        // why the camera could not be opened ("" when it works)
 
+// Is the microphone already allowed (so that nothing needs to be asked)?
+async function micAlreadyAllowed() {
+  try {
+    return !!(navigator.permissions && (await navigator.permissions.query({ name: "microphone" })).state === "granted");
+  } catch (err) {
+    return false;                      // this browser cannot say
+  }
+}
+
 async function startCamera(first = true) {
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
     return cameraUnavailable("This browser has no camera access. Use Upload photo instead.");
   }
+  const videoWanted = { facingMode: "environment", width: { ideal: 1920 }, height: { ideal: 1080 } };
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: "environment", width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false,
-    });
+    let stream = null, micNote = "";
+    // The first time the page opens, the camera and the microphone are asked for in ONE request: a single permission
+    // question, and no second request that could freeze the camera on a phone. The microphone is released at once
+    // (only the permission is wanted; listening starts when Listen is pressed). Without a microphone, or when it is
+    // refused, the camera alone still starts.
+    if (first && !(await micAlreadyAllowed())) {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: videoWanted, audio: true });
+        stream.getAudioTracks().forEach((track) => { track.stop(); stream.removeTrack(track); });
+      } catch (err) {
+        stream = null;
+        micNote = MIC_HELP[err.name === "NotFoundError" ? "audio-capture" : "not-allowed"];
+      }
+    }
+    if (!stream) stream = await navigator.mediaDevices.getUserMedia({ video: videoWanted, audio: false });
     if (uploadView) { stream.getTracks().forEach((t) => t.stop()); return; }      // an upload was opened meanwhile
     video.srcObject = stream;
     video.addEventListener("loadedmetadata", () => { cameraReady = true; sizeOverlay(); if (!ws) connectLive(); }, { once: true });
-    setStatus("Camera ready. Show something to read.");
-    if (first) say("System online. Show me something to read.");
+    setStatus(micNote || "Camera ready. Show something to read.");
+    if (first) say("System online. Show me something to read.", { optional: true });
   } catch (err) {
     cameraUnavailable("Camera not available (" + err.name + "). Use Upload photo instead.");
   }
@@ -480,32 +506,58 @@ async function autoCapture() {
 }
 
 // The Capture now button: take a photo immediately (normal mode) or read the page in view (book mode)
+// The shutter on the camera picture does exactly what the Capture now button does: whatever the guidance says,
+// the picture in view is taken now and used
+const cameraBox = document.querySelector(".camera");
+function flash() {
+  cameraBox.classList.remove("flash");
+  void cameraBox.offsetWidth;                                  // restart the animation
+  cameraBox.classList.add("flash");
+}
+const shutter = $("shutter");                                  // missing when the browser kept an older copy of the page
+if (shutter) shutter.addEventListener("click", () => { flash(); $("capture").click(); });
+let shutterShown = null;
+function showShutter() {                                       // only while the live camera is in use
+  const want = cameraReady && !uploadView;
+  if (shutter && want !== shutterShown) { shutterShown = want; shutter.hidden = !want; }
+}
+
+let capturing = false;                                         // a photo is being read: a second press must wait
 $("capture").addEventListener("click", async () => {
   if (uploadView && mode === "book") return handleBookEvent("changed");
   if (!uploadView && !video.videoWidth) return setStatus("The camera is not ready yet.");
   if (mode === "book") return handleBookEvent("changed");
+  if (capturing) return;
+  capturing = true;
   paused = true;
   stopSpeaking();
   setStatus("Reading the text…");
   say("Reading.");
   let ok = false;
   try {
-    const data = await postCapture(await frameBlob(1920, 0.92), false);
+    const blob = await frameBlob(1920, 0.92);
+    // The photo taken stays on the screen and the camera is switched off, until New item (or "next") brings it back
+    if (!uploadView) showStill(URL.createObjectURL(blob), true);
+    const data = await postCapture(blob, false);
     ok = data.ok;
     stopSpeaking();
-    setStatus(ok ? `Captured in ${data.seconds} s. ` + data.message : data.message);
-    if (ok) showCaptured(data);
+    setStatus(ok ? `Captured in ${data.seconds} s. ` + data.message + " Press New item, or say next, for the camera." : data.message);
+    if (ok) { showCaptured(data); checkQuality(); } else if (capturedStill) backToCamera();    // nothing read: try again
     say(data.message);
   } catch (err) {
     setStatus("Could not read the photo: " + err.message);
     say("Sorry, I could not read the photo.");
+    if (capturedStill) backToCamera();
   }
   wsSend({ type: "capture_result", ok });
   paused = false;
+  capturing = false;
 });
 
 // An uploaded photo: shown in place of the camera, with the same overlay
-function showStill(url) {
+let capturedStill = false;     // the still is a photo just taken with the camera (not an uploaded one)
+function showStill(url, captured = false) {
+  capturedStill = captured;
   uploadView = true;
   stopCamera();                       // the camera is off while an uploaded photo is used
   still.onload = () => { sizeOverlay(); };
@@ -544,8 +596,10 @@ function drawPhotoQuality(ctx, W, H, bottom) {
 function backToCamera() {
   if (!uploadView) return;
   uploadView = false;
+  capturedStill = false;
   photoQuality = null;
   still.hidden = true;
+  if ((still.getAttribute("src") || "").startsWith("blob:")) URL.revokeObjectURL(still.getAttribute("src"));
   still.removeAttribute("src");
   $("back-to-camera").hidden = true;
   resetBook();
@@ -962,7 +1016,7 @@ function drawNormal(ctx, W, H) {
       outlines(ctx, photoQuality.quads, photoQuality.lines, W, H);
       if (photoQuality.box && !(photoQuality.quads || []).length) { ctx.lineWidth = 2; rect(ctx, photoQuality.box, W, H); }
     }
-    drawGuideBox(ctx, W, H, COLORS.idle, "UPLOADED PHOTO");
+    drawGuideBox(ctx, W, H, capturedStill ? COLORS.ready : COLORS.idle, capturedStill ? "CAPTURED   R = new item" : "UPLOADED PHOTO");
     return drawPhotoQuality(ctx, W, H, H - (20 / 720) * H - 12);
   }
   if (!guide) return drawGuideBox(ctx, W, H, COLORS.idle, "SHOW TEXT HERE");
@@ -1028,6 +1082,7 @@ function render() {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   const W = overlay.width / dpr, H = overlay.height / dpr;
   ctx.clearRect(0, 0, W, H);
+  showShutter();
   if ((cameraReady || uploadView) && W > 0) { if (mode === "book") drawBook(ctx, W, H); else drawNormal(ctx, W, H); }
   requestAnimationFrame(render);
 }

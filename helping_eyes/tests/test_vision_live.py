@@ -31,7 +31,7 @@ class Clock:
         self.t += seconds
 
 
-def guide_with(box_lines, problems=(), clock=None):
+def guide_with(box_lines, problems=(), clock=None, confidence=0.9):
     """A LiveGuide whose detector always 'sees' box_lines = (box, [line boxes]) or nothing."""
     clock = clock or Clock()
     state = {"seen": box_lines, "problems": list(problems)}
@@ -40,7 +40,7 @@ def guide_with(box_lines, problems=(), clock=None):
         if state["seen"] is None:
             return None, []
         box, line_boxes = state["seen"]
-        return box, [TextLine("text", 0.9, b) for b in line_boxes]
+        return box, [TextLine("text", confidence, b) for b in line_boxes]
 
     def assess(frame, box=None):
         return QualityReport(problems=state["problems"])
@@ -107,14 +107,57 @@ def test_rearm_on_request():
     assert guide.update(FRAME)["state"] == "HOLD"
 
 
-def test_small_text_says_move_closer_without_repeating():
+def test_small_text_the_reader_is_unsure_of_says_move_closer_without_repeating():
     tiny = ((300, 150, 600, 200), [(300, 150 + i * 10, 600, 158 + i * 10) for i in range(4)])
-    guide, clock, _ = guide_with(tiny)
+    guide, clock, _ = guide_with(tiny, confidence=0.5)
     assert guide.update(FRAME)["speak"] == "Move closer"
     clock.advance(0.5)
     assert guide.update(FRAME)["speak"] == ""           # same hint, inside the cooldown
     clock.advance(2)
     assert guide.update(FRAME)["speak"] == "Move closer"
+
+
+def test_small_text_that_is_read_well_never_says_move_closer_and_is_captured():
+    tiny = ((300, 150, 600, 200), [(300, 150 + i * 10, 600, 158 + i * 10) for i in range(4)])
+    guide, clock, _ = guide_with(tiny, confidence=0.95)
+    reply = guide.update(FRAME)
+    assert reply["speak"] == "" and reply["state"] == "HOLD"          # no hint: it goes on to hold still and capture
+    clock.advance(0.6)
+    assert guide.update(FRAME)["capture"]
+
+
+def sheet_on_desk(fraction):
+    """A frame with a bright sheet (page, book or tablet) that covers `fraction` of it, on a dark desk."""
+    import cv2
+    frame = np.full((H, W, 3), 40, np.uint8)
+    w, h = int(W * fraction ** 0.5), int(H * fraction ** 0.5)
+    x, y = (W - w) // 2, (H - h) // 2
+    frame[y:y + h, x:x + w] = 235
+    for i in range(0, h - 30, 28):
+        cv2.putText(frame, "lorem ipsum dolor sit amet", (x + 10, y + 20 + i), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (20, 20, 20), 1)
+    return frame
+
+
+def test_a_sheet_that_fills_the_picture_never_gets_move_closer_even_if_the_reader_is_unsure():
+    tiny = ((300, 150, 600, 200), [(300, 150 + i * 10, 600, 158 + i * 10) for i in range(4)])
+    guide, clock, _ = guide_with(tiny, confidence=0.5)                       # small text, not read with confidence ...
+    assert guide.update(sheet_on_desk(0.9))["speak"] == ""                   # ... but the sheet fills the picture: enough
+    clock.advance(3)
+    assert guide.update(sheet_on_desk(0.5))["speak"] == "Move closer"        # a small sheet on the desk: still asked to come closer
+
+
+def test_page_fill_measures_how_much_of_the_picture_the_sheet_covers():
+    for fraction in (0.2, 0.5, 0.8, 0.95):
+        assert abs(vision.page_fill(sheet_on_desk(fraction)) - fraction) < 0.06
+    assert vision.page_fill(np.zeros((H, W, 3), np.uint8)) == 0.0              # nothing there
+
+
+def test_move_closer_depends_on_how_well_most_of_the_text_is_read():
+    tiny = ((300, 150, 600, 200), [(300, 150 + i * 10, 600, 158 + i * 10) for i in range(4)])
+    sure = [TextLine("a long line that was read with confidence", 1.0, tiny[1][0]), TextLine("x", 0.3, tiny[1][1])]
+    unsure = [TextLine("a long line that was not read well", 0.4, tiny[1][0]), TextLine("ok", 1.0, tiny[1][1])]
+    assert vision.LiveGuide._read_well(sure) and not vision.LiveGuide._read_well(unsure)      # letters count, not lines
+    assert not vision.LiveGuide._read_well([])
 
 
 def test_text_cut_off_at_an_edge_says_which_way_to_move():
