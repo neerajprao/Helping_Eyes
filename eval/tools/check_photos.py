@@ -54,7 +54,10 @@ def main() -> int:
         if n > 1:
             problems.append(f"{pid}: appears {n} times in the manifest")
     for r in rows:
-        if r["category"] not in CATEGORIES or r["lighting"] not in LIGHTING or r["angle"] not in ANGLE or r["device"] not in DEVICE:
+        missing = [k for k in ("category", "lighting", "angle", "device") if not r[k]]
+        if missing:
+            problems.append(f"{r['id']}: details missing ({', '.join(missing)}); set them on the intake page")
+        elif r["category"] not in CATEGORIES or r["lighting"] not in LIGHTING or r["angle"] not in ANGLE or r["device"] not in DEVICE:
             problems.append(f"{r['id']}: a value is not allowed ({r['category']}, {r['lighting']}, {r['angle']}, {r['device']})")
         elif not r["id"].startswith(CATEGORIES[r["category"]]):
             problems.append(f"{r['id']}: id prefix does not match category {r['category']}")

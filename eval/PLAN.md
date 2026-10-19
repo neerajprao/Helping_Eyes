@@ -279,6 +279,7 @@ Your effort:
 eval/PLAN.md, eval/SHOTLIST.md, eval/LABELING.md, eval/RESULTS.md (generated)
 eval/common.py            normalisation, CER/WER, bootstrap, field matching, app pipeline wrappers
 eval/tools/collect.py     photo intake page → eval/data/private/images/ + manifest.csv
+eval/tools/import_folder.py  imports a whole folder of photos (eval/data/private/inbox/)
 eval/tools/check_photos.py  Checkpoint 1 checks (duplicates, near-empty, possible personal details)
 eval/tools/label.py       region + transcription page → eval/data/private/labels/<id>.json
 eval/check_labels.py      consistency check (Phase 2)

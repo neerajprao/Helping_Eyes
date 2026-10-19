@@ -6,9 +6,11 @@ to eval/data/manifest.csv for each.
     .venv/bin/python eval/tools/collect.py --lan        also reachable from a phone on the same Wi-Fi (upload only:
                                                         a phone camera needs https, but picking or taking a photo works)
 
-Two ways in:
+Three ways in:
   * Take photo   the laptop webcam, captured exactly like the app's Capture now (up to 1920 px, JPEG quality 0.92)
   * Add files    phone photos (JPEG, PNG or HEIC; several at once). They share the details chosen on the form.
+  * A folder     eval/tools/import_folder.py imports a whole folder at once; the details are then set on this page
+                 (every photo has its own dropdowns; photos still missing details are listed first, outlined in red).
 
 Every photo is stored as <id>.jpg: EXIF rotation applied, all metadata (GPS location, camera, time) removed, JPEG
 quality 95. The id is a category prefix and a number (ms01, mb01, fl01, bp01, dc01, ss01). An exact copy of a photo
@@ -28,7 +30,7 @@ import sys
 import tempfile
 import threading
 import time
-from typing import List
+from typing import List, Optional, Tuple
 
 import uvicorn
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
@@ -80,7 +82,7 @@ def write_intake(data: dict) -> None:
 
 
 def next_id(category: str, rows: List[dict]) -> str:
-    prefix = CATEGORIES[category]
+    prefix = CATEGORIES.get(category, UNSET)
     used = {r["id"] for r in rows}
     n = 1
     while f"{prefix}{n:02d}" in used:
@@ -111,33 +113,67 @@ def to_clean_image(data: bytes, name: str) -> Image.Image:
     return image.convert("RGB")                         # a fresh image: no EXIF, GPS or other metadata is carried over
 
 
+UNSET = "xx"      # id prefix of a photo whose category is not chosen yet (imported from a folder)
+
+
+def save_photo(data: bytes, name: str, category: str = "", lighting: str = "", angle: str = "", device: str = "",
+               notes: str = "") -> Tuple[Optional[str], str]:
+    """Clean and store one photo and add its manifest row. Details may be left empty ("") and filled in later on the
+    page. Returns (id, "") or (None, why it was skipped)."""
+    digest = hashlib.sha256(data).hexdigest()
+    image = to_clean_image(data, name)
+    with _lock:
+        rows, intake = read_manifest(), read_intake()
+        same = next((k for k, v in intake.items() if v.get("sha256") == digest), None)
+        if same:
+            return None, f"{name}: the same file is already saved as {same}"
+        pid = next_id(category, rows)
+        image.save(os.path.join(IMAGES, pid + ".jpg"), "JPEG", quality=95)
+        rows.append({"id": pid, "category": category, "lighting": lighting, "angle": angle, "device": device,
+                     "notes": " ".join(notes.split())})
+        write_manifest(rows)
+        intake[pid] = {"original_name": name, "sha256": digest, "bytes": len(data),
+                       "size": list(image.size), "added": time.strftime("%Y-%m-%d %H:%M:%S")}
+        write_intake(intake)
+    return pid, ""
+
+
 @app.post("/api/add")
 async def add(files: List[UploadFile] = File(...), category: str = Form(...), lighting: str = Form(...),
               angle: str = Form(...), device: str = Form(...), notes: str = Form("")) -> dict:
     if category not in CATEGORIES or lighting not in LIGHTING or angle not in ANGLE or device not in DEVICE:
         raise HTTPException(400, "Choose a category, lighting, angle and device.")
-    notes = " ".join(notes.split())
     added, skipped = [], []
     for upload in files:
-        data = await upload.read()
-        digest = hashlib.sha256(data).hexdigest()
-        image = to_clean_image(data, upload.filename or "")
-        with _lock:
-            rows, intake = read_manifest(), read_intake()
-            same = next((k for k, v in intake.items() if v.get("sha256") == digest), None)
-            if same:
-                skipped.append(f"{upload.filename}: the same file is already saved as {same}")
-                continue
-            pid = next_id(category, rows)
-            image.save(os.path.join(IMAGES, pid + ".jpg"), "JPEG", quality=95)
-            rows.append({"id": pid, "category": category, "lighting": lighting, "angle": angle, "device": device,
-                         "notes": notes})
-            write_manifest(rows)
-            intake[pid] = {"original_name": upload.filename, "sha256": digest, "bytes": len(data),
-                           "size": list(image.size), "added": time.strftime("%Y-%m-%d %H:%M:%S")}
-            write_intake(intake)
-            added.append(pid)
+        pid, why = save_photo(await upload.read(), upload.filename or "", category, lighting, angle, device, notes)
+        (added if pid else skipped).append(pid or why)
     return {"added": added, "skipped": skipped}
+
+
+@app.post("/api/update/{pid}")
+def update(pid: str, category: str = Form(""), lighting: str = Form(""), angle: str = Form(""), device: str = Form(""),
+           notes: str = Form("")) -> dict:
+    """Change a photo's details. A new category gives the photo a new id with that category's prefix."""
+    if (category and category not in CATEGORIES) or (lighting and lighting not in LIGHTING) or \
+            (angle and angle not in ANGLE) or (device and device not in DEVICE):
+        raise HTTPException(400, "Not an allowed value.")
+    with _lock:
+        rows = read_manifest()
+        row = next((r for r in rows if r["id"] == pid), None)
+        if row is None:
+            raise HTTPException(404, "No such photo.")
+        new_id = pid
+        if category != row["category"]:
+            new_id = next_id(category, rows)
+            os.rename(os.path.join(IMAGES, pid + ".jpg"), os.path.join(IMAGES, new_id + ".jpg"))
+            intake = read_intake()
+            if pid in intake:
+                intake[new_id] = intake.pop(pid)
+            write_intake(intake)
+        row.update(id=new_id, category=category, lighting=lighting, angle=angle, device=device,
+                   notes=" ".join(notes.split()))
+        write_manifest(rows)
+    return {"id": new_id}
 
 
 @app.get("/api/items")
@@ -230,17 +266,36 @@ $("upload").onclick = () => {
   const f = form(); for (const file of $("files").files) f.append("files", file, file.name);
   $("msg").textContent = "Saving..."; send(f).then(() => { $("files").value = ""; });
 };
+const CHOICES = {category: CATS_JSON, lighting: LIGHT_JSON, angle: ANGLE_JSON, device: DEV_JSON};
+const done = (r) => r.category && r.lighting && r.angle && r.device;
 async function load() {
   const rows = await (await fetch("/api/items")).json();
-  const by = {}; rows.forEach((r) => by[r.category] = (by[r.category] || 0) + 1);
-  const hard = rows.filter((r) => r.lighting !== "good" || r.angle !== "flat").length;
+  const by = {}; rows.forEach((r) => by[r.category || "(no category)"] = (by[r.category || "(no category)"] || 0) + 1);
+  const hard = rows.filter((r) => r.lighting === "dim" || r.lighting === "glare" || r.angle === "curved").length;
+  const todo = rows.filter((r) => !done(r)).length;
   $("count").textContent = rows.length + " photos (" + Object.entries(by).map(([k, v]) => k + " " + v).join(", ") +
-    "); " + hard + " not good-light-and-flat";
+    "); " + hard + " difficult (dim, glare or curved); " + (todo ? todo + " still need details (shown first)" : "all details filled in");
   $("grid").innerHTML = "";
+  rows.sort((a, b) => done(a) - done(b));
   for (const r of rows) {
-    const d = document.createElement("div"); d.className = "card";
-    d.innerHTML = `<img loading="lazy" src="/img/${r.id}?t=${Date.now()}"><b>${r.id}</b> ${r.category}<br>${r.lighting}, ${r.angle}, ${r.device}<br><span class="muted"></span><br>`;
-    d.querySelector(".muted").textContent = r.notes;
+    const d = document.createElement("div"); d.className = "card"; if (!done(r)) d.style.borderColor = "#d33";
+    d.innerHTML = `<a href="/img/${r.id}" target="_blank"><img loading="lazy" src="/img/${r.id}?t=${Date.now()}"></a><b>${r.id}</b><br>`;
+    const fields = {};
+    for (const [k, values] of Object.entries(CHOICES)) {
+      const s = document.createElement("select"); s.style.width = "100%";
+      s.innerHTML = `<option value="">${k}?</option>` + values.map((v) => `<option>${v}</option>`).join("");
+      s.value = r[k] || ""; fields[k] = s; d.appendChild(s);
+    }
+    const n = document.createElement("input"); n.type = "text"; n.placeholder = "notes"; n.value = r.notes || "";
+    n.style.width = "100%"; fields.notes = n; d.appendChild(n);
+    const save = async () => {
+      const f = new FormData(); for (const [k, el] of Object.entries(fields)) f.append(k, el.value);
+      const res = await fetch("/api/update/" + r.id, {method: "POST", body: f});
+      const out = await res.json(); $("msg").textContent = res.ok ? "Saved " + out.id : (out.detail || "Failed");
+      if (res.ok && (out.id !== r.id || done(Object.fromEntries(Object.entries(fields).map(([k, el]) => [k, el.value]))) !== done(r))) load();
+      else if (res.ok) Object.entries(fields).forEach(([k, el]) => r[k] = el.value);
+    };
+    Object.values(fields).forEach((el) => el.onchange = save);
     const del = document.createElement("button"); del.className = "plain"; del.textContent = "Delete";
     del.onclick = async () => { if (confirm("Delete " + r.id + "?")) { await fetch("/api/delete/" + r.id, {method: "POST"}); load(); } };
     d.appendChild(del); $("grid").appendChild(d);
@@ -256,8 +311,10 @@ def _options(values) -> str:
 
 @app.get("/", response_class=HTMLResponse)
 def page() -> str:
-    return (PAGE.replace("CATS", _options(CATEGORIES)).replace("LIGHT", _options(LIGHTING))
-            .replace("ANGLE", _options(ANGLE)).replace("DEV", _options(DEVICE)))
+    page = PAGE
+    for key, values in (("CATS", list(CATEGORIES)), ("LIGHT", LIGHTING), ("ANGLE", ANGLE), ("DEV", DEVICE)):
+        page = page.replace(key + "_JSON", json.dumps(values)).replace(key, _options(values))
+    return page
 
 
 if __name__ == "__main__":

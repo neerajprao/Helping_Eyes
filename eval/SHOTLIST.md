@@ -5,10 +5,19 @@ no addresses, no phone numbers, no e-mail addresses, no faces, no card or accoun
 digits. Cover them with a finger or a sticky note, or choose another item. Photos stay in the git-ignored
 `eval/data/private/`; book pages are copyrighted, so they are never committed.
 
-How: run `.venv/bin/python eval/tools/collect.py` and open http://localhost:7871. Set the details, then **Take photo**
-(laptop webcam, captured like the app's Capture now) or **Add files** (phone photos; AirDrop them to the Mac, or run
-with `--lan` and upload from the phone's browser). One item can appear in at most 2 photos, and then under different
-conditions (for example good light and glare).
+How (easiest): put all the photos in **`eval/data/private/inbox/`** (git-ignored). Subfolders named after a category
+(`inbox/medicine_strip/`, `inbox/book_page/`, ...) fill in the category; this is optional. Then:
+
+```bash
+.venv/bin/python eval/tools/import_folder.py      # copies them in: rotation fixed, all metadata (GPS) removed
+.venv/bin/python eval/tools/collect.py            # open http://localhost:7871 and set the details on each photo
+```
+
+Photos still missing a detail are listed first, outlined in red. Your originals in `inbox/` are not changed; delete
+them yourself once imported if you like (they still contain the GPS location). The page can also take webcam photos
+(**Take photo**, captured like the app's Capture now) or **Add files** directly.
+
+One item can appear in at most 2 photos, and then under different conditions (for example good light and glare).
 
 Hold the phone or item the way a low-vision user might: roughly centred, but not perfectly framed.
 
