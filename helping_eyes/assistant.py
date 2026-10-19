@@ -223,12 +223,15 @@ def web_lookup_allowed(question: str) -> bool:
 
 # ---------------- expiry dates (computed in code; small models get these wrong) ----------------
 _MONTHS = {m.lower(): i for i, m in enumerate(calendar.month_abbr) if m}
-_EXPIRY_LABEL = r"(?:exp(?:iry|iration)?(?:\s*date)?|use\s*(?:by|before)|best\s*before)\.?\s*[:.\-]?\s*"
+# "Exp", "Exp.", "Expiry Date", "Exp. Date", "Exp.Date", "Exp Dt.", "Use by", "Best before"
+_EXPIRY_LABEL = (r"(?:exp(?:iry|iration|\.)?(?:\s*(?:date|dt)\b\.?)?|use\s*(?:by|before)|best\s*before)"
+                 r"\.?\s*[:.\-]?\s*")
 _EXPIRY_DATE = re.compile(
     _EXPIRY_LABEL + r"(?:"
     r"(?P<d>\d{1,2})[/\-.](?P<m>\d{1,2})[/\-.](?P<y>\d{2,4})"          # 15/04/2028
     r"|(?P<m2>\d{1,2})[/\-.](?P<y2>\d{2,4})"                            # 04/2028, 04-28
-    r"|(?P<mon>[a-z]{3})[a-z]*\.?[\s/\-.]*(?P<y3>\d{2,4})"               # APR 2028, Apr-28
+    # APR 2028, Apr-28; only real month names, so the "Dat" of "Date" is never taken for a month
+    r"|(?P<mon>jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?[\s/\-.]*(?P<y3>\d{2,4})"
     r")",
     re.I,
 )

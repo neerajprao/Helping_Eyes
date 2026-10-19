@@ -256,8 +256,21 @@ def test_the_chosen_model_answers_and_unknown_choices_are_ignored():
         da.QWEN_MODELS.update(saved[1])
 
 
+def test_expiry_dates_are_found_in_common_label_wordings():
+    from datetime import date
+    cases = {"Exp. Date 02/2027": date(2027, 2, 28), "Exp.Date:02/2027": date(2027, 2, 28),
+             "Exp Dt. 02/27": date(2027, 2, 28), "EXP DATE 02/2027": date(2027, 2, 28),
+             "Expiry Date: 15/04/2028": date(2028, 4, 15), "Exp. 02/2027": date(2027, 2, 28),
+             "EXP: APR 2028": date(2028, 4, 30), "Use before FEB 2027": date(2027, 2, 28),
+             "Best before 31-12-26": date(2026, 12, 31)}
+    for printed, expected in cases.items():
+        assert [d for _, d in da.expiry_dates(printed)] == [expected], printed
+    assert da.expiry_dates("Mfg. Date 03/2025") == []
+    assert "HAS EXPIRED" in da.expiry_checks("Exp. Date 02/2025", today=date(2026, 10, 19))
+
+
 if __name__ == "__main__":
-    tests = [(n, f) for n, f in sorted(globals().items()) if n.startswith("test_") and callable(f)]
+    tests =[(n, f) for n, f in sorted(globals().items()) if n.startswith("test_") and callable(f)]
     failed = 0
     for test_name, fn in tests:
         try:
