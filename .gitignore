@@ -3,3 +3,6 @@
 __pycache__/
 graphify-out/
 helping_eyes/models/
+
+# Evaluation: raw photos and full typed text stay private (see eval/PLAN.md)
+eval/data/private/

@@ -1,7 +1,22 @@
 # Helping Eyes: real-world evaluation plan
 
-Status: draft for review (Checkpoint 0). Nothing has been measured yet. Every number in this file is from the
+Status: agreed at Checkpoint 0 (2026-10-19). Nothing has been measured yet. Every number in this file is from the
 Phase 0 checks or the timing test below, and is labelled as such.
+
+**Decisions at Checkpoint 0**
+
+1. The expiry bug is **fixed before the evaluation** (`_EXPIRY_LABEL` and the month-name branch in `assistant.py`,
+   with the regression test `test_expiry_dates_are_found_in_common_label_wordings`). The evaluation measures the fixed
+   app, and each result file records the git commit and whether the tree was dirty.
+2. QA runs at **both temperatures**: 0 (reproducible) and 0.2 (the live app's setting).
+3. One Gemini call was made to check the key. It got **HTTP 503 "model is currently experiencing high demand"**, not
+   an authentication error, so the key is accepted. Retry rule for every Gemini call: on 503 or 429, retry up to 3
+   times with a 30 s pause. Every retry is logged, and a call that still fails counts as a **service error**,
+   reported separately and not scored as a wrong answer.
+4. Evaluation date: **2026-10-19**.
+5. The existing `.venv` (Python 3.13.9) is kept.
+6. Tesseract: `--oem 1 --psm 3` primary, `--psm 6` secondary.
+7. Section 2.2 (preprocessed conditions): explained again in plain words at Checkpoint 1; still open.
 
 The evaluation measures three things:
 
@@ -37,17 +52,17 @@ Ground rules: every number comes from a script in `eval/`. Raw per-item results 
 
 - In normal (capture) mode the app **never dewarps or deskews**; those steps run only on the book path. "Preprocessed,
   exactly as the app does it" therefore means a different pipeline per category (section 2.2).
-- **Bug found in Phase 0 (not fixed):** `expiry_dates()` finds nothing in `Exp. Date 02/2027` or `Exp.Date:02/2027`.
+- **Bug found in Phase 0 (fixed after Checkpoint 0, see decision 1):** `expiry_dates()` finds nothing in `Exp. Date 02/2027` or `Exp.Date:02/2027`.
   The month-name branch matches "Dat"+"e", the month lookup fails, and the match is dropped without the numeric
   branch being tried. `EXP DATE 02/2027`, `Exp. 02/2027` and `Expiry Date: 02/2027` work. `Exp Dt. 02/27` also fails.
   With Qwen in the Phase 0 timing test this gave the contradictory answer "The text does not show an expiry date. It
-  is valid until February 2027." Decision needed (Checkpoint 0, question 1).
+  is valid until February 2027."
 
 ## Phase 0 check results
 
 | Check | Result |
 |---|---|
-| Existing tests | **152 tests in 9 files, 152 passed, 0 failed, 0 skipped** (commands 14, llm 15, run 13, server 12, vision_book 32, vision_live 29, vision_ocr 10, vision_quality 10, web_mic 17). The README says 101 |
+| Existing tests | **152 tests in 9 files, 152 passed, 0 failed, 0 skipped** (commands 14, llm 15, run 13, server 12, vision_book 32, vision_live 29, vision_ocr 10, vision_quality 10, web_mic 17). The README said 101. After the expiry fix and its test: 153 |
 | Python / venv | `.venv` already exists with **Python 3.13.9**, not 3.11. All tests pass on it, and Kokoro uses it (`kokoro-onnx`). Plan: keep it rather than rebuild (question 5). `.venv` is already in `.gitignore` (pattern `.venv`) |
 | Apple Vision | Works (the 10 OCR tests and the server tests use it); macOS 27.0.1 |
 | RapidOCR | `rapidocr==3.9.2` (+ `onnxruntime==1.30.0`) already installed in the venv, the same version the app used before commit `1759476` (`RapidOCR()` with default settings). Not in `requirements.txt`; it will be pinned in `requirements-eval.txt` |
@@ -151,8 +166,9 @@ from the app.
   that `read_page` produced), `set_provider(...)`, then `ask(question)`, exactly as `/api/ask` does after `classify()`.
 - **Text sources × models:** {true text (your typed region), Apple Vision raw, Apple Vision app end-to-end} ×
   {Gemini `gemini-3.1-flash-lite`, Qwen `qwen2.5:3b-instruct`} = 6 runs per question.
-- **Temperature:** the app streams at 0.2. Plan: run at **0** for reproducibility, by changing only the
-  `temperature` field of the outgoing request in the eval harness (question 2).
+- **Temperature:** both 0 and 0.2 (the app's own value). The harness changes only the `temperature` field of the
+  outgoing request; everything else is the app's request. That gives 12 runs per question (3 sources × 2 models × 2
+  temperatures). Headline numbers use 0.2, because that is what the live app does; 0 is reported next to them.
 - **Scoring:**
   - Rules first: normalised exact match for dates, numbers, prices, batch and page numbers; expiry verdict = the
     answer says expired / not expired, matched against the gold verdict on the fixed date.
@@ -203,11 +219,12 @@ Only text is ever sent, never photos. Calls are spaced **at least 4.5 s apart** 
 
 | Use | Calls |
 |---|---|
-| Key check | 1 |
-| QA: ~55 questions × 3 text sources | ~165 |
+| Key check (done: 1 call, HTTP 503) | 1 |
+| QA: ~55 questions × 3 text sources × 2 temperatures | ~330 |
 | Speed: 21 TTFT runs + 21 end-to-end runs | ~42 |
-| Judge, only if a Gemini judge is chosen: ~15 free-text questions × 3 sources × 2 models | ~90 |
-| **Total** | **~210 (no Gemini judge) to ~300** |
+| Judge, only if a Gemini judge is chosen: ~15 free-text questions × 3 sources × 2 models × 2 temperatures | ~180 |
+| Retries after 503 / 429 | unknown, logged |
+| **Total** | **~375 (no Gemini judge) to ~555, plus retries** |
 
 The free-tier limits for `gemini-3.1-flash-lite` are not documented in the repo. Please check the per-day limit in
 Google AI Studio. If it is below the total, the QA run is split over two days; the script resumes from saved
@@ -220,12 +237,12 @@ Compute (all evaluation runs together; budget 1.5 h):
 | Run | Estimate | Based on |
 |---|---|---|
 | OCR: 50 photos × (4 engines raw + pipeline + 4 engines preprocessed + end-to-end + Tesseract psm 6) | 5–10 min | timing test; phone photos are larger but downscaled to 1600 px |
-| QA, Gemini: ~165 calls × (4.5 s spacing + ~1 s) | ~15 min | spacing rule |
-| QA, Qwen: ~165 calls × ~1–3 s | ~5–8 min | timing test |
-| Judge | 5–10 min | ~90–180 short calls |
+| QA, Gemini: ~330 calls × (4.5 s spacing + ~1 s) | ~30 min | spacing rule |
+| QA, Qwen: ~330 calls × ~1–3 s | ~10–15 min | timing test |
+| Judge | 5–15 min | ~180–360 short calls |
 | Speed | 10–15 min | 20 runs × 9 operations, with Gemini spacing |
 | Bootstrap and report | < 2 min | |
-| **Total** | **~45–60 min** | |
+| **Total** | **~65–90 min** | close to the 1.5 h budget; if Gemini is slow or returns 503s, the Gemini QA run is resumed in a second session rather than going over budget |
 
 Your effort:
 
@@ -259,9 +276,10 @@ Your effort:
 ## Files this evaluation will add
 
 ```
-eval/PLAN.md, eval/LABELING.md, eval/RESULTS.md (generated)
+eval/PLAN.md, eval/SHOTLIST.md, eval/LABELING.md, eval/RESULTS.md (generated)
 eval/common.py            normalisation, CER/WER, bootstrap, field matching, app pipeline wrappers
 eval/tools/collect.py     photo intake page → eval/data/private/images/ + manifest.csv
+eval/tools/check_photos.py  Checkpoint 1 checks (duplicates, near-empty, possible personal details)
 eval/tools/label.py       region + transcription page → eval/data/private/labels/<id>.json
 eval/check_labels.py      consistency check (Phase 2)
 eval/run_ocr.py, eval/run_qa.py, eval/run_latency.py, eval/make_results.py
