@@ -2,7 +2,10 @@
 .venv
 __pycache__/
 graphify-out/
-helping_eyes/models/
+helping_eyes/voice_models/
 
-# Evaluation: raw photos and full typed text stay private (see eval/PLAN.md)
+# Evaluation: raw photos and full typed text stay private (see markdown/eval_plan.md)
 eval/data/private/
+.DS_Store
+# Photo evaluation report: full text of every photo (markdown/eval_photo_summary.md has only numbers)
+markdown/eval_photo_report.md

@@ -26,6 +26,7 @@ Almost all of the computer vision lives in one file: [helping_eyes/vision.py](he
 17. [The glare experiment (glare.py)](#17-the-glare-experiment-glarepy)
 18. [Cheat sheet: every number and why](#18-cheat-sheet-every-number-and-why)
 19. [Math glossary](#19-math-glossary)
+20. [How the checks did on 148 real photos](#20-how-the-checks-did-on-148-real-photos)
 
 ---
 
@@ -301,6 +302,8 @@ Glare is a patch where light bounces straight into the camera and the page turns
 3. `connectedComponentsWithStats` lists the blobs. The **biggest** one is the glare; its **centre** `(cx, cy)` is taken and divided by the picture size to give `glare_at`, a position from 0 to 1.
 4. If the glare covers **≥ 1 %** of the picture (`GLARE_MIN_FRACTION`) → problem **"glare"**.
 
+On real pharmacy photos this rule never fired (see [section 20](#20-how-the-checks-did-on-148-real-photos)): the shine on foil and glossy cartons is bright but rarely reaches 250, so it is not "pure white".
+
 ### 4.4 Turning problems into one spoken hint
 
 `hint()` picks the **most important** problem, in this order:
@@ -318,7 +321,16 @@ A page photographed at an angle looks like a trapezoid: the near edge is wide, t
 
 ### 5.1 `find_page_quad()` — find the 4 corners
 
-Paper is the **bright** thing on a darker desk. The recipe:
+There are two ways, and which one is used depends on whether the text has already been read.
+
+**When the text lines are known** (a capture, and the live guidance): `find_item_quad()` grows the item from its own text.
+
+1. **Pick the item's text.** The text lines are drawn as boxes, and boxes closer than **6 %** of the picture are joined into groups. The group with the most text wins; each line counts by its area (big print counts more) and by how near the middle of the picture it is (that is where people hold the item). Text on boxes in the background is a separate, smaller group, so it is ignored.
+2. **GrabCut** (on a copy 320 px long): the text lines are marked "certainly the item", the area around them (up to 5 times the text block's size) "maybe", and everything further away "certainly background". The picture's rim is background too, except where it has the item's own colour (the colour under the text): an item that fills the picture reaches the rim. GrabCut then learns the colours of item and background and decides every "maybe" pixel. Because it compares colours, it works whether the item is **lighter or darker** than what is behind it.
+3. Keep the piece that holds the text, and fill its holes (dark print, a barcode).
+4. **Is it one solid four-sided item?** It must fill at least **85 %** of its convex hull, and the 4-corner shape (from `approxPolyDP`, or else the smallest rotated rectangle around it) must cover it with at most **25 %** mismatch. A shelf of several products or a crumpled strip fails, and then there is **no outline**: better none than a wrong one.
+
+**When the text is not known yet** (a book page in book mode), the older rule is used. Paper is the **bright** thing on a darker desk:
 
 1. Shrink the frame (longest side 480) and make it grey.
 2. Gaussian blur 7×7 (kill noise).
@@ -328,6 +340,8 @@ Paper is the **bright** thing on a darker desk. The recipe:
 6. Take its **convex hull**, then `approxPolyDP` at several tolerances (2 %, 3 %, 5 %, 8 % of the outline length) until the outline simplifies to exactly **4 points**.
 7. Safety check: the 4-point shape must fill at least **80 %** of the hull's area. A hand, a table edge or a cup is not rectangular enough, so it fails the check.
 8. Scale the corners back up to the full picture size.
+
+**Why the text comes first.** On the pharmacy photos the packs lay on a **light floor tile**. The floor was the brightest region, so the bright-region rule outlined the floor: 144 of its 145 outlines ran along the picture's own edges and none enclosed a pack. The same idea measured "how much of the picture the sheet fills" (`page_fill`), so the floor was counted as the item (median 69 % when the packs covered about 22 %), and on 26 photos the app would have stopped saying "Move closer" too early. Both now use the item grown from its text (corrected on 23 October 2026).
 
 **Ordering the corners** (`_order_corners`) uses neat arithmetic on each corner `(x, y)`:
 
@@ -804,7 +818,9 @@ For speech, `speech_chunks()` cuts the text into pieces: one per paragraph, and 
 
 ## 17. The glare experiment (glare.py)
 
-[glare.py](glare.py) is a standalone test script (not used by the app yet). It detects glare in a different way from `assess_quality`, and draws red circles on the picture.
+The real-photo test in [section 20](#20-how-the-checks-did-on-148-real-photos) showed why this matters: the app's pure-white rule never caught the shine on foil and glossy packs, which is bright but not saturated.
+
+`glare.py` was a standalone test script, kept outside this repository (it is not in the project and not used by the app). It detects glare in a different way from `assess_quality`, and draws red circles on the picture.
 
 1. Convert to **HSV** colour: **H**ue (which colour), **S**aturation (how colourful), **V**alue (how bright).
 2. Glare = **very bright (V > 235) AND nearly colourless (S < 40)**. Glare washes colour out to white, so its saturation drops to almost 0. This separates glare from a bright but coloured area, such as a yellow page.
@@ -834,6 +850,9 @@ Comparison with the app's own glare test:
 | contrast **< 25** | `assess_quality` | flat, ink and paper too alike |
 | grey **≥ 250**, area **≥ 1 %** | `GLARE_MIN_FRACTION` | glare |
 | glare side split **0.38 / 0.62** | `hint()` | left/right/top/bottom/middle |
+| text groups joined within **6 %** of the picture | `ITEM_GAP` | the item's own text, not the background's |
+| item may grow **5 ×** past its text | `ITEM_GROW` | room for the whole pack, not the room |
+| item fills **≥ 85 %** of its hull, quad mismatch **≤ 25 %** | `ITEM_SOLID`, `ITEM_FIT` | one solid four-sided item, or no outline |
 | page area **≥ 25 %** | `find_page_quad` | there is a clear page |
 | approxPolyDP **2/3/5/8 %** | `find_page_quad` | tolerance to reach 4 corners |
 | quad area **≥ 80 %** of hull | `find_page_quad` | really rectangular |
@@ -909,3 +928,33 @@ Comparison with the app's own glare test:
 | **LAB colour** | a colour space where `L` is brightness alone |
 | **HSV colour** | hue, saturation, value (brightness) |
 | **Sequence matching** | finding the longest runs of matching words between two texts |
+
+---
+
+## 20. How the checks did on 148 real photos
+
+On 22 October 2026 every check above was run on 148 phone photos from a pharmacy: tablet strips, cartons, syrup bottles, ampoules, tubes and jars (`eval/run_photo_eval.py`). Each photo was saved with every check drawn on it as a box of its own colour, so you can **see** what the app found, not just read numbers:
+
+| Colour | What the box shows |
+|---|---|
+| Green | each line of text Apple Vision found (its slanted outline) |
+| Cyan | the text region: one box around all the text (what live guidance aims at) |
+| Yellow | the item outline from `find_page_quad()` (grown from its text) |
+| Magenta | each saturated glare blob (grey 250+, after the 7×7 opening) |
+| Red | a 40 px patch on a text line whose sharpness (variance of the Laplacian) is below 60 |
+| Blue | a 40 px patch darker than the "dark" level (mean below 50) |
+| Orange arrow | the text slant from `estimate_skew()` |
+
+What came out:
+
+| Check | Result | What it means |
+|---|---|---|
+| **Blur** (4.1) | Text sharpness 248 to 7934, median 1966; never below 60. 21 of 8466 small text patches were blurry, on 13 photos | Phone photos held still are far above the threshold; blur was not a problem in this set |
+| **Glare** (4.3) | Never flagged. The largest saturated blob was 0.12 % of the picture (the rule needs 1 %). Blobs were drawn on 15 photos, only 6 of the 44 photos with visible glare | Shine on foil, gold cartons and glossy bottles is bright but not pure white; a mirror-like carton even reflects a *dark* image. A better glare test would look for bright, low-texture patches **on the text region**, not only pure white |
+| **Light and contrast** (4.2) | Brightness 96 to 167, contrast 34 to 70; never "dark", "bright" or "flat" | The photos were taken in a lit shop. The blue "dark" patches are dark printing (navy labels, black bands), not poor light |
+| **Slant** (7) | Measured on 64 photos, median 3°, up to 26° | Only the book path straightens slant; a single capture is read as it is (Apple Vision copes with moderate slant) |
+| **Item outline** (5) | First version: an "outline" on 145 photos, but 144 were the picture's own frame and none enclosed a pack. Corrected: an outline around the item on 134 photos, none on shelves of several products or crumpled strips; 71 tilted enough to flatten | The bright-region rule assumed white paper on a dark desk; on a light floor it found the floor. Growing the item from its text fixed it |
+| **Item fill** (15) | First version: median 69 %, 47 photos at 75 % or more. Corrected: median 22 %, none at 75 % | The floor had been counted as the item, which would have stopped "Move closer" on 26 photos where the pack was small |
+| **Capture versions** (3.4) | Corrected outline: the untouched photo on 134, the flattened item on 14 | With a real outline a tilted item is straightened before reading; the text the app keeps improved slightly (90.1 % against 89.7 % key-line accuracy), and the answers stayed the same (62.8 %) |
+
+To look at one check at a time, `eval/make_check_folders.py` puts the photos into `eval/data/private/cv_checks/blur_photos`, `glare_photos`, `dark_photos`, `slant_photos` and `outline_photos` (13, 15, 126, 64 and 134 photos), each with only that check's boxes. The full table, and every photo with its boxes, is in [eval_photo_summary.md](eval_photo_summary.md) and `eval_photo_report.md` (kept out of git because it holds the photos' text).

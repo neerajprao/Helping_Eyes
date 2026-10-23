@@ -29,6 +29,7 @@ Hold the phone or item the way a low-vision user might: roughly centred, but not
 | 4 | `book_page` (single pages and two-page spreads with page numbers) | 8 | 3 good/flat (2 of them spreads) · 1 **dim** · 1 **glare** (glossy page) · 1 tilted · 2 curved (open book near the spine) |
 | 5 | `document` (manual, leaflet, printed notice, instructions; nothing personal) | 7 | 3 good/flat · 1 **dim** · 1 **glare** · 2 tilted |
 | 6 | `sign_or_screen` (printed sign, laptop or phone screen, appliance display) | 6 | 3 good/flat · 1 **glare** (screen reflection) · 1 tilted · 1 dim |
+| 7 | `personal_care` (creams, face washes, lotions, soaps, toothpaste, antiseptic; added 2026-10-22 for the pharmacy photo set) | – | as they come |
 | | **Total** | **45** | **16 deliberately difficult** (dim or glare), plus 8 tilted and 9 curved |
 
 Also include:

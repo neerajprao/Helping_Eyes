@@ -83,6 +83,44 @@ def test_page_quad_and_warp_flatten_perspective():
         1.5 * vision._profile_sharpness(cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY))
 
 
+def test_the_outline_is_the_item_with_the_text_not_a_brighter_floor():
+    # An orange blister strip with dark print, lying at an angle on a light floor tile (as in the pharmacy photos):
+    # the floor is the brightest region, so the brightness rule outlines the floor; the text-guided outline does not.
+    frame = np.full((H, W, 3), 205, np.uint8)
+    cv2.line(frame, (0, 600), (W, 640), (60, 60, 60), 10)
+    strip = np.array([[480, 160], [800, 190], [770, 560], [450, 530]], np.float32)
+    cv2.fillConvexPoly(frame, strip.astype(np.int32), (40, 140, 230))
+    flat = np.full((370, 320, 3), 255, np.uint8)
+    rows = []
+    for i in range(6):
+        cv2.putText(flat, "Tablets 15 mg", (20, 50 + i * 50), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (20, 20, 20), 2)
+    matrix = cv2.getPerspectiveTransform(np.float32([[0, 0], [320, 0], [320, 370], [0, 370]]), strip)
+    ink = cv2.warpPerspective(255 - flat, matrix, (W, H))
+    frame[ink > 128] = 20
+    for i in range(6):                                          # each printed line's box, mapped onto the frame
+        pts = cv2.perspectiveTransform(np.float32([[[20, 30 + i * 50], [230, 30 + i * 50], [230, 56 + i * 50], [20, 56 + i * 50]]]), matrix)[0]
+        rows.append((int(pts[:, 0].min()), int(pts[:, 1].min()), int(pts[:, 0].max()), int(pts[:, 1].max())))
+    found = vision.find_page_quad(frame, text_boxes=rows)
+    assert found is not None, "item not found"
+    assert np.abs(found - strip).max() < 20, (found.round(), strip)
+    blind = vision.find_page_quad(frame)                        # the brightness rule alone ...
+    assert blind is None or np.abs(blind - strip).max() > 100   # ... does not find the strip
+
+
+def test_the_outline_ignores_text_on_things_in_the_background():
+    frame = np.full((H, W, 3), 90, np.uint8)
+    cv2.rectangle(frame, (500, 200), (760, 560), (235, 235, 235), -1)       # the item, in the middle
+    rows = []
+    for i in range(8):
+        cv2.putText(frame, "Each ml contains", (520, 240 + i * 38), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (20, 20, 20), 2)
+        rows.append((520, 222 + i * 38, 740, 246 + i * 38))
+    cv2.rectangle(frame, (20, 600), (300, 700), (220, 220, 220), -1)        # another box at the edge, with small print
+    cv2.putText(frame, "other box", (30, 650), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (20, 20, 20), 1)
+    rows.append((30, 638, 120, 654))
+    found = vision.find_page_quad(frame, text_boxes=rows)
+    assert found is not None and np.abs(found - np.float32([[500, 200], [760, 200], [760, 560], [500, 560]])).max() < 15, found
+
+
 def test_flat_full_frame_page_is_left_alone():
     warped, matrix = vision.warp_page(make_page())
     assert matrix is None and warped.shape == (H, W, 3)

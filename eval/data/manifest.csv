@@ -1,0 +1,149 @@
+id,category,lighting,angle,device,notes
+mb01,medicine_box,good,flat,phone,carton side panel
+mb02,medicine_box,good,flat,phone,carton front
+mb03,medicine_box,good,tilted,phone,small print; values misaligned with labels
+mb04,medicine_box,glare,flat,phone,glare: reflective box
+mb05,medicine_box,glare,flat,phone,glare over the top line
+mb06,medicine_box,good,flat,phone,carton back
+mb07,medicine_box,good,flat,phone,carton side panel
+mb08,medicine_box,glare,flat,phone,glare; dot-matrix dates
+mb09,medicine_box,good,flat,phone,values misaligned with labels
+mb10,medicine_box,glare,flat,phone,glare: gold foil carton
+mb11,medicine_box,glare,flat,phone,gold foil carton front
+mb12,medicine_box,good,flat,phone,several products on a shelf
+mb13,medicine_box,good,tilted,phone,several products on a shelf
+mb14,medicine_box,good,flat,phone,several products on a shelf
+mb15,medicine_box,good,flat,phone,several products on a shelf
+mb16,medicine_box,good,tilted,phone,several products; text at about 40 degrees
+mb17,medicine_box,good,flat,phone,several products on a shelf; curved labels
+mb18,medicine_box,glare,curved,phone,curved bottle label; light streak; held in hand
+mb19,medicine_box,good,curved,phone,curved bottle label; held in hand
+mb20,medicine_box,glare,curved,phone,curved bottle; light streak
+mb21,medicine_box,good,curved,phone,curved bottle label; held in hand
+mb22,medicine_box,glare,curved,phone,curved bottle; light streak
+mb23,medicine_box,glare,curved,phone,curved bottle; light streak
+mb24,medicine_box,glare,curved,phone,curved bottle; light streaks
+mb25,medicine_box,glare,curved,phone,curved bottle; dates elsewhere
+mb26,medicine_box,glare,curved,phone,curved bottle; unlabelled inkjet values
+mb27,medicine_box,glare,curved,phone,near-duplicate of mb24
+mb28,medicine_box,good,curved,phone,curved bottle label
+mb29,medicine_box,good,curved,phone,curved bottle; values cut off
+mb30,medicine_box,good,curved,phone,values misaligned with labels
+mb31,medicine_box,good,flat,phone,carton front
+mb32,medicine_box,glare,flat,phone,glare on part of the text
+mb33,medicine_box,good,flat,phone,near-duplicate of mb31
+mb34,medicine_box,good,flat,phone,dot-matrix dates
+mb35,medicine_box,glare,flat,phone,glare spot over the logo
+mb36,medicine_box,good,flat,phone,almost blank carton side
+mb37,medicine_box,good,flat,phone,carton side
+mb38,medicine_box,glare,curved,phone,curved bottle; light streak
+mb39,medicine_box,glare,curved,phone,slanted inkjet; light streak
+mb40,medicine_box,good,tilted,phone,small in frame; busy background
+mb41,medicine_box,good,flat,phone,carton front
+mb42,medicine_box,good,flat,phone,carton side
+mb43,medicine_box,good,flat,phone,near-duplicate of mb41
+mb44,medicine_box,good,flat,phone,carton side
+mb45,medicine_box,good,flat,phone,carton front; striped background
+mb46,medicine_box,good,flat,phone,carton side; Hindi brand name
+mb47,medicine_box,good,flat,phone,carton side
+mb48,medicine_box,good,flat,phone,carton front; striped background
+mb49,medicine_box,good,flat,phone,carton side; Hindi brand name
+mb50,medicine_box,good,flat,phone,carton side
+mb51,medicine_box,good,flat,phone,plastic bottle label
+mb52,medicine_box,good,flat,phone,carton back
+mb53,medicine_box,good,flat,phone,carton front
+mb54,medicine_box,glare,flat,phone,carton side; glare beside it
+mb55,medicine_box,good,flat,phone,values misaligned with labels
+mb56,medicine_box,glare,flat,phone,carton front; glare beside it
+mb57,medicine_box,good,flat,phone,carton side; addresses only
+mb58,medicine_box,good,flat,phone,values misaligned with labels
+mb59,medicine_box,glare,flat,phone,glare over the left half of the text
+mb60,medicine_box,glare,flat,phone,glare: holographic foil patch
+mb61,medicine_box,good,flat,phone,carton front; small in frame
+mb62,medicine_box,good,flat,phone,seal tape over text; other pack at the edge
+mb63,medicine_box,good,flat,phone,values misaligned with labels
+mb64,medicine_box,good,flat,phone,two batches on one panel
+mb65,medicine_box,good,flat,phone,carton side
+mb66,medicine_box,good,curved,phone,tiny curved ampoule; held in hand
+mb67,medicine_box,good,curved,phone,ampoule; busy background
+mb68,medicine_box,good,flat,phone,end flap only; other packs at the edge
+mb69,medicine_box,good,flat,phone,small in frame; busy surroundings
+mb70,medicine_box,glare,flat,phone,values misaligned with labels; two batches
+mb71,medicine_box,glare,curved,phone,tiny glossy vial; busy background
+mb72,medicine_box,good,curved,phone,vial; busy background
+mb73,medicine_box,good,curved,phone,vial front
+mb74,medicine_box,glare,flat,phone,carton front; glossy reflection
+mb75,medicine_box,glare,flat,phone,glare spot over the name
+mb76,medicine_box,glare,flat,phone,glare over the title; other packs below
+mb77,medicine_box,good,flat,phone,two batches; other packs below
+mb78,medicine_box,good,flat,phone,rubber band over text
+mb79,medicine_box,glare,flat,phone,glare spot over the composition
+ms01,medicine_strip,glare,curved,phone,crumpled foil; reflections
+ms02,medicine_strip,good,flat,phone,"small print, sideways dates"
+ms03,medicine_strip,good,flat,phone,foil strip
+ms04,medicine_strip,good,flat,phone,foil strip
+ms05,medicine_strip,good,flat,phone,sideways inkjet dates
+ms06,medicine_strip,good,flat,phone,sideways inkjet dates
+ms07,medicine_strip,glare,curved,phone,crumpled foil; reflections
+ms08,medicine_strip,good,flat,phone,"small print, sideways inkjet"
+ms09,medicine_strip,good,flat,phone,expired; sideways inkjet
+ms10,medicine_strip,good,flat,phone,sideways dates
+ms11,medicine_strip,good,flat,phone,sideways inkjet
+ms12,medicine_strip,good,flat,phone,faint inkjet dates
+ms13,medicine_strip,good,flat,phone,"gold foil, low contrast"
+ms14,medicine_strip,glare,curved,phone,crinkled foil; reflections
+ms15,medicine_strip,good,flat,phone,sideways inkjet
+ms16,medicine_strip,good,flat,phone,sideways inkjet
+ms17,medicine_strip,good,flat,phone,sideways inkjet
+ms18,medicine_strip,good,flat,phone,cut piece; expiry this month
+ms19,medicine_strip,good,tilted,phone,faint inkjet
+ms20,medicine_strip,good,flat,phone,supplement; partly smudged inkjet
+ms21,medicine_strip,good,flat,phone,ayurvedic strip
+ms22,medicine_strip,good,tilted,phone,diagonal text; handwritten mark
+ms23,medicine_strip,good,flat,phone,supplement strip
+ms24,medicine_strip,good,flat,phone,rubber band over text
+ms25,medicine_strip,good,flat,phone,inkjet over bumps
+ms26,medicine_strip,good,flat,phone,pharmacy stickers over the foil
+ms27,medicine_strip,good,flat,phone,faint inkjet at the edge
+ms28,medicine_strip,glare,curved,phone,crumpled foil; reflections
+ms29,medicine_strip,good,flat,phone,sideways inkjet over bumps
+ms30,medicine_strip,good,flat,phone,foil strip
+ms31,medicine_strip,good,flat,phone,upside-down band; inkjet level
+ms32,medicine_strip,good,curved,phone,oval crop; faint inkjet
+ms33,medicine_strip,glare,curved,phone,crumpled gold foil; reflections
+ms34,medicine_strip,good,flat,phone,rubber band over text; faint inkjet
+ms35,medicine_strip,good,flat,phone,rubber band; sideways inkjet
+ms36,medicine_strip,good,flat,phone,faint inkjet over bumps
+ms37,medicine_strip,good,flat,phone,inkjet over bumps
+ms38,medicine_strip,good,flat,phone,sideways inkjet over bumps
+ms39,medicine_strip,good,flat,phone,faint inkjet
+ms40,medicine_strip,good,flat,phone,rubber band; sideways inkjet
+ms41,medicine_strip,good,flat,phone,near-duplicate of ms38
+ms42,medicine_strip,good,flat,phone,repeated pockets; other packs at the edge
+ms43,medicine_strip,glare,flat,phone,shiny foil; other packs at the edge
+pc01,personal_care,glare,curved,phone,tube; embossed price
+pc02,personal_care,glare,curved,phone,tube; embossed price; sticker
+pc03,personal_care,glare,curved,phone,tube; embossed crimp
+pc04,personal_care,good,curved,phone,tube; embossed crimp
+pc05,personal_care,glare,curved,phone,tube; light streaks
+pc06,personal_care,glare,curved,phone,tube; upside-down lines; light streak
+pc07,personal_care,glare,curved,phone,tube; light streak
+pc08,personal_care,glare,curved,phone,tube; embossed crimp
+pc09,personal_care,glare,flat,phone,small in frame; glare on price
+pc10,personal_care,good,flat,phone,carton front
+pc11,personal_care,good,flat,phone,carton back; vertical inkjet
+pc12,personal_care,good,flat,phone,carton front
+pc13,personal_care,good,flat,phone,tiny print; vertical inkjet
+pc14,personal_care,good,flat,phone,rotated text; foil print
+pc15,personal_care,good,flat,phone,carton side
+pc16,personal_care,good,curved,phone,symbol-coded dates
+pc17,personal_care,glare,curved,phone,glossy tube; symbol-coded dates
+pc18,personal_care,good,flat,phone,busy shop background
+pc19,personal_care,good,curved,phone,unlabelled dot-matrix dates; busy background
+pc20,personal_care,good,flat,phone,round lid label
+pc21,personal_care,glare,curved,phone,glossy curved band
+pc22,personal_care,good,flat,phone,sparse dot-matrix; busy background
+pc23,personal_care,good,curved,phone,values offset from labels; transparent bottle
+pc24,personal_care,good,flat,phone,dates on the base; busy shop background
+pc25,personal_care,good,curved,phone,letter-coded dates; busy shop background
+pc26,personal_care,glare,curved,phone,symbol-coded dates; glare on the right half

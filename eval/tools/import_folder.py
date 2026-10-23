@@ -6,7 +6,7 @@ Import a whole folder of photos into the evaluation set (eval/data/private/image
 
   * Every JPEG, PNG or HEIC in the folder and its subfolders is imported, sorted by file name.
   * A subfolder named after a category (medicine_strip, medicine_box, food_label, book_page, document,
-    sign_or_screen) sets that category; otherwise it is left empty and the photo gets an "xx" id until it is chosen.
+    sign_or_screen, personal_care) sets that category; otherwise it is left empty and the photo gets an "xx" id until it is chosen.
   * The device is guessed from the photo's own camera details (read before they are removed): a phone maker means
     "phone". Lighting and angle cannot be guessed: set them, and anything left empty, on the intake page
     (eval/tools/collect.py), where photos missing details are listed first.

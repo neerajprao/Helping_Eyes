@@ -1,4 +1,4 @@
-# Helping Eyes: the one requirements file for the whole project (app and tests).
+# Helping Eyes: the one requirements file for the whole project (app, tests and evaluation).
 #   pip install -r requirements.txt        (run from the top folder)
 fastapi==0.141.1
 uvicorn[standard]==0.54.0
@@ -16,3 +16,9 @@ python-dotenv==1.2.1
 
 # Tests (python helping_eyes/tests/test_*.py runs without these, except test_server.py)
 httpx2==2.13.1
+
+# Evaluation in eval/ only (the app does not use these). Tesseract itself is a system program
+# (Homebrew: tesseract 5.5.1), called through its command line.
+rapidocr==3.9.2         # the app's previous OCR reader, used as a baseline
+onnxruntime==1.30.0     # runs RapidOCR's models
+Pillow==12.1.0          # photo intake: EXIF rotation, metadata removal

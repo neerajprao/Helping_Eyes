@@ -6,7 +6,7 @@ give it a public `https` address with a free tunnel. No account, no card.
 
 ## One-time setup
 
-1. Get a free key from [Google AI Studio](https://aistudio.google.com/apikey) and put it in `helping_eyes/.env` as `LLM_API_KEY=your_key` (copy `helping_eyes/.env.example` to `.env` first).
+1. Get a free key from [Google AI Studio](https://aistudio.google.com/apikey) and put it in `helping_eyes/.env` as `LLM_API_KEY=your_key` (create the file if it is not there; it is the only settings file).
 2. Install the packages: `.venv/bin/python -m pip install -r requirements.txt` (run from the top folder). For the better, local voice, then run `.venv/bin/python run.py --get-voice` once (about 350 MB); without it the free Edge voice is used.
 3. Install a tunnel tool. For one fixed address every time (free), use ngrok:
    - Make a free account at [dashboard.ngrok.com](https://dashboard.ngrok.com), then under **Domains** claim your free domain (it looks like `your-name.ngrok-free.app`).
@@ -31,7 +31,7 @@ Open `<address>/api/health`. You should see `"status":"ok"`, `"llm_configured":t
 
 ## The settings
 
-Put these in `helping_eyes/.env` (see `.env.example`):
+Put these in `helping_eyes/.env` (each one is listed there as a comment):
 
 | Setting | Needed? | What it is |
 |---|---|---|
@@ -62,8 +62,8 @@ Put these in `helping_eyes/.env` (see `.env.example`):
 | `helping_eyes/server.py` | The front desk: receives pictures and requests from visitors and sends answers back. |
 | `helping_eyes/vision.py` | The eyes: reads text from pictures with Apple Vision, fixes bad photos, understands book pages, and gives the "move closer" hints. |
 | `helping_eyes/commands.py` | The listener and the voice: decides if what you said is a command or a question, and turns each sentence into spoken audio (the local Kokoro voice first, the Edge voice as the backup). |
-| `helping_eyes/models/` | The Kokoro voice model files, downloaded by `python run.py --get-voice`. Not in git. |
+| `helping_eyes/voice_models/` | The Kokoro voice model files, downloaded by `python run.py --get-voice`. Not in git. |
 | `helping_eyes/assistant.py` | The answerer: asks the AI model (Gemini, or Qwen 3B on your Mac) and searches the web when you agree. |
 | `helping_eyes/web/` | The web page: `index.html` (layout), `app.js` (camera, voice and speaking), `style.css` (looks). |
-| `helping_eyes/.env.example` | A template of the settings. Copy it to `.env` and put your key in it. `.gitignore` keeps `.env` out of git. |
+| `helping_eyes/.env` | Your settings and your key, in the one settings file. `.gitignore` keeps it out of git. |
 | `.github/workflows/check.yml` | Makes GitHub run all the tests on a Mac every time you push. It does not deploy anything. |

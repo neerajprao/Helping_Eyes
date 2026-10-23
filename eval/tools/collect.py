@@ -13,7 +13,7 @@ Three ways in:
                  (every photo has its own dropdowns; photos still missing details are listed first, outlined in red).
 
 Every photo is stored as <id>.jpg: EXIF rotation applied, all metadata (GPS location, camera, time) removed, JPEG
-quality 95. The id is a category prefix and a number (ms01, mb01, fl01, bp01, dc01, ss01). An exact copy of a photo
+quality 95. The id is a category prefix and a number (ms01, mb01, fl01, bp01, dc01, ss01, pc01). An exact copy of a photo
 already collected is refused. Details can be fixed later by editing eval/data/manifest.csv.
 
 Nothing here runs OCR or shows recognised text, so the ground truth typed later cannot be influenced by an engine.
@@ -46,7 +46,7 @@ MANIFEST = os.path.join(DATA, "manifest.csv")
 
 FIELDS = ["id", "category", "lighting", "angle", "device", "notes"]
 CATEGORIES = {"medicine_strip": "ms", "medicine_box": "mb", "food_label": "fl", "book_page": "bp",
-              "document": "dc", "sign_or_screen": "ss"}
+              "document": "dc", "sign_or_screen": "ss", "personal_care": "pc"}
 LIGHTING = ["good", "dim", "glare"]
 ANGLE = ["flat", "tilted", "curved"]
 DEVICE = ["laptop webcam", "phone"]

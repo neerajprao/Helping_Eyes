@@ -151,14 +151,16 @@ def read_text_enhanced(image: np.ndarray, report=None) -> Tuple[str, str]:
     the win unless another version is clearly better.
     Returns (text, name of the winning version).
     """
-    best_name, best_lines, best_score = "original", [], -1.0
-    for name, candidate in capture_candidates(image, report):
-        lines = [l for l in recognize_text(candidate) if l.text.strip()]
-        score = sum(l.confidence * len(l.text.strip()) for l in lines)
+    def score(lines):
+        return sum(l.confidence * len(l.text.strip()) for l in lines)
+    original = [l for l in recognize_text(image) if l.text.strip()]
+    best_name, best_lines, best_score = "original", original, score(original) * 1.05   # small bias towards the untouched frame
+    for name, candidate in capture_candidates(image, report, [l.box for l in original]):
         if name == "original":
-            best_lines, best_score = lines, score * 1.05      # small bias towards the untouched frame
-        elif score > best_score:
-            best_name, best_lines, best_score = name, lines, score
+            continue
+        lines = [l for l in recognize_text(candidate) if l.text.strip()]
+        if score(lines) > best_score:
+            best_name, best_lines, best_score = name, lines, score(lines)
     return "\n".join(l.text for l in best_lines), best_name
 
 
@@ -168,7 +170,8 @@ def read_text_enhanced(image: np.ndarray, report=None) -> Tuple[str, str]:
 #
 #     assess_quality()     blur (variance of the Laplacian), glare blobs, exposure
 #                          -> QualityReport.hint(): "Hold still", "Glare on the right..."
-#     find_page_quad()     page outline (contour + approxPolyDP)
+#     find_page_quad()     page or item outline: grown from the text with GrabCut (find_item_quad), or the
+#                          bright region (contour + approxPolyDP) for a page not yet read
 #     warp_page()          homography to a flat, top-down page
 #     estimate_dewarp()    curved lines (a book bending into its spine) modelled as a
 #                          vertical shift per column; dewarp() flattens them and
@@ -288,13 +291,168 @@ def _order_corners(pts: np.ndarray) -> np.ndarray:
     return np.array([pts[np.argmin(s)], pts[np.argmin(d)], pts[np.argmax(s)], pts[np.argmax(d)]], np.float32)
 
 
-def find_page_quad(frame: np.ndarray, min_area: float = 0.25) -> Optional[np.ndarray]:
+ITEM_GROW = 5.0      # the item may reach this far past its text (a fraction of the text block's width / height)
+ITEM_GAP = 0.06      # text lines closer than this (a fraction of the picture) belong to the same item
+ITEM_CENTRE = 0.3    # text near the middle of the picture counts more: that is where the item is held
+ITEM_FIT = 0.25      # a four-cornered outline that misses this much of the item (1 - overlap) is not used
+ITEM_SOLID = 0.85    # the item must fill this much of its convex hull: several products side by side do not
+
+
+def _main_text_group(boxes: List[Box], w: int, h: int) -> List[Box]:
+    """The text lines of the item being shown. Lines lying close together (a gap under ITEM_GAP of the picture) form
+    a group; the group with the most text wins, each line counted by its area (large print counts more) and by how
+    near the middle of the picture it is. Text on things in the background is a separate, smaller group."""
+    s = 400 / max(w, h)
+    canvas = np.zeros((max(1, round(h * s)), max(1, round(w * s))), np.uint8)
+    for x1, y1, x2, y2 in boxes:
+        cv2.rectangle(canvas, (int(x1 * s), int(y1 * s)), (int(x2 * s), int(y2 * s)), 255, -1)
+    k = max(3, round(ITEM_GAP * 400)) | 1
+    count, labels = cv2.connectedComponents(cv2.dilate(canvas, np.ones((k, k), np.uint8)))
+
+    def group(b):
+        return labels[min(canvas.shape[0] - 1, int((b[1] + b[3]) / 2 * s)), min(canvas.shape[1] - 1, int((b[0] + b[2]) / 2 * s))]
+    score = [0.0] * count
+    for b in boxes:
+        d = ((((b[0] + b[2]) / 2 - w / 2) / w) ** 2 + (((b[1] + b[3]) / 2 - h / 2) / h) ** 2) ** 0.5   # 0 middle, 0.7 corner
+        score[group(b)] += (b[2] - b[0]) * (b[3] - b[1]) / (1 + (d / ITEM_CENTRE) ** 2)
+    best = max(range(1, count), key=lambda i: score[i]) if count > 1 else 0
+    return [b for b in boxes if group(b) == best] or list(boxes)
+
+
+def item_mask(frame: np.ndarray, text_boxes: List[Box], size: int = 320) -> Tuple[Optional[np.ndarray], float]:
     """
-    The page outline as 4 corners (top-left, top-right, bottom-right, bottom-left)
-    in frame pixels, or None when there is no clear page: paper is the bright
-    region, so Otsu threshold, close the text holes, take the biggest contour and
-    simplify it with approxPolyDP.
+    The item that carries the text (a pack, bottle, strip, page ...) as a mask on a small copy of the frame, and the
+    scale of that copy. The item is grown from its own text lines with GrabCut, which separates it from the
+    background by colour, so it works whether the item is lighter or darker than what is behind it (a brightness
+    threshold assumes white paper on a dark desk, and on a light floor it finds the floor). The growth is limited to
+    ITEM_GROW past the text, so a hand or a shelf behind cannot take over. (None, scale) when there is no text.
     """
+    h, w = frame.shape[:2]
+    if not text_boxes:
+        return None, 1.0
+    s = size / max(h, w)
+    small = cv2.resize(frame, (max(1, round(w * s)), max(1, round(h * s))), interpolation=cv2.INTER_AREA)
+    if small.ndim == 2:
+        small = cv2.cvtColor(small, cv2.COLOR_GRAY2BGR)
+    sh, sw = small.shape[:2]
+    boxes = _main_text_group(text_boxes, w, h)
+    tx1, ty1 = min(b[0] for b in boxes) * s, min(b[1] for b in boxes) * s
+    tx2, ty2 = max(b[2] for b in boxes) * s, max(b[3] for b in boxes) * s
+    mx, my = ITEM_GROW * (tx2 - tx1) + 6, ITEM_GROW * (ty2 - ty1) + 6
+    mask = np.full((sh, sw), cv2.GC_BGD, np.uint8)
+    mask[int(max(0, ty1 - my)):int(min(sh, ty2 + my)), int(max(0, tx1 - mx)):int(min(sw, tx2 + mx))] = cv2.GC_PR_BGD
+    seed = np.zeros((sh, sw), np.uint8)
+    for x1, y1, x2, y2 in boxes:
+        cv2.rectangle(seed, (int(x1 * s), int(y1 * s)), (int(x2 * s), int(y2 * s)), 255, -1)
+    # The picture's rim is background, except where it has the item's own colour (the colour under the text): an
+    # item that fills the picture reaches the rim, and calling it background there would teach GrabCut its colour.
+    lab = cv2.cvtColor(small, cv2.COLOR_BGR2LAB).astype(np.float32)
+    item_colour = np.median(lab[seed > 0], axis=0)
+    border = max(2, round(0.03 * max(sh, sw)))
+    rim = np.zeros((sh, sw), bool)
+    rim[:border, :] = rim[-border:, :] = rim[:, :border] = rim[:, -border:] = True
+    like_item = np.linalg.norm(lab - item_colour, axis=2) < 20
+    mask[rim & ~like_item] = cv2.GC_BGD
+    mask[cv2.dilate(seed, np.ones((9, 9), np.uint8)) > 0] = cv2.GC_PR_FGD
+    mask[seed > 0] = cv2.GC_FGD                                # the text certainly lies on the item
+    try:
+        cv2.grabCut(small, mask, None, np.zeros((1, 65), np.float64), np.zeros((1, 65), np.float64), 4,
+                    cv2.GC_INIT_WITH_MASK)
+    except cv2.error:                                          # e.g. a picture of one flat colour
+        return None, s
+    fg = np.isin(mask, (cv2.GC_FGD, cv2.GC_PR_FGD)).astype(np.uint8) * 255
+    k = max(3, round(0.015 * max(sh, sw))) | 1
+    fg = cv2.morphologyEx(fg, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (k, k)))
+    fg = cv2.morphologyEx(fg, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2 * k + 1, 2 * k + 1)))
+    count, labels = cv2.connectedComponents(fg)
+    if count < 2:
+        return None, s
+    best = max(range(1, count), key=lambda i: int(((labels == i) & (seed > 0)).sum()))     # the piece holding the text
+    piece = (labels == best).astype(np.uint8) * 255
+    contours, _ = cv2.findContours(piece, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    filled = np.zeros_like(piece)
+    cv2.drawContours(filled, contours, -1, 255, -1)            # holes (dark print, a barcode) belong to the item
+    return filled, s
+
+
+def _overlap_miss(a: np.ndarray, b: np.ndarray) -> float:
+    """1 - intersection / union of two masks: 0 when they are the same."""
+    return 1 - np.logical_and(a > 0, b > 0).sum() / max(np.logical_or(a > 0, b > 0).sum(), 1)
+
+
+def find_item_quad(frame: np.ndarray, text_boxes: List[Box]) -> Optional[np.ndarray]:
+    """
+    The outline of the item that carries the text, as 4 corners (top-left, top-right, bottom-right, bottom-left) in
+    frame pixels, or None. The item mask (item_mask) is simplified to four corners with approxPolyDP when that is a
+    good fit, otherwise the smallest rotated rectangle around it is used (packs are rectangular). Nothing is returned
+    when the item is not a solid four-sided shape (several products side by side, a crumpled strip): no outline is
+    better than a wrong one.
+    """
+    mask, s = item_mask(frame, text_boxes)
+    if mask is None:
+        return None
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    contour = max(contours, key=cv2.contourArea)
+    hull = cv2.convexHull(contour)
+    if cv2.contourArea(hull) <= 0 or cv2.contourArea(contour) < ITEM_SOLID * cv2.contourArea(hull):
+        return None
+
+    def miss(quad):
+        poly = np.zeros_like(mask)
+        cv2.fillConvexPoly(poly, quad.astype(np.int32), 255)
+        return _overlap_miss(poly, mask)
+    best = cv2.boxPoints(cv2.minAreaRect(hull)).astype(np.float32)
+    best_miss = miss(best)
+    peri = cv2.arcLength(hull, True)
+    for eps in (0.02, 0.03, 0.05, 0.08):
+        approx = cv2.approxPolyDP(hull, eps * peri, True)
+        if len(approx) == 4:
+            quad = approx.reshape(4, 2).astype(np.float32)
+            if miss(quad) <= best_miss:
+                best, best_miss = quad, miss(quad)
+            break
+    if best_miss > ITEM_FIT:
+        return None
+    h, w = frame.shape[:2]
+    quad = _order_corners(best) / s
+    quad[:, 0] = np.clip(quad[:, 0], 0, w - 1)
+    quad[:, 1] = np.clip(quad[:, 1], 0, h - 1)
+    return quad
+
+
+def _holds_text(quad: np.ndarray, text_boxes: List[Box], frame_shape) -> bool:
+    """A page outline is believable only when it holds the text and is not just the picture's own frame."""
+    h, w = frame_shape[:2]
+    margin = 0.02 * max(h, w)
+    if sum(1 for x, y in quad if x < margin or y < margin or x > w - margin or y > h - margin) >= 2:
+        return False
+    poly = quad.reshape(-1, 1, 2).astype(np.float32)
+    inside = sum(cv2.pointPolygonTest(poly, ((b[0] + b[2]) / 2, (b[1] + b[3]) / 2), False) >= 0 for b in text_boxes)
+    return inside >= 0.9 * len(text_boxes)
+
+
+def find_page_quad(frame: np.ndarray, min_area: float = 0.25,
+                   text_boxes: Optional[List[Box]] = None) -> Optional[np.ndarray]:
+    """
+    The page (or item) outline as 4 corners (top-left, top-right, bottom-right, bottom-left) in frame pixels, or None
+    when there is no clear outline.
+    With text_boxes (the OCR's line boxes) the item that carries the text is found (find_item_quad); the bright-region
+    outline below is then used only when it really holds the text and is not just the picture's frame.
+    Without them (a book page before it is read): paper is the bright region, so Otsu threshold, close the text holes,
+    take the biggest contour and simplify it with approxPolyDP. That suits white paper on a darker desk.
+    """
+    if text_boxes:
+        quad = find_item_quad(frame, text_boxes)
+        if quad is not None:
+            return quad
+        quad = _bright_region_quad(frame, min_area)
+        return quad if quad is not None and _holds_text(quad, _main_text_group(text_boxes, *frame.shape[1::-1]),
+                                                        frame.shape) else None
+    return _bright_region_quad(frame, min_area)
+
+
+def _bright_region_quad(frame: np.ndarray, min_area: float = 0.25) -> Optional[np.ndarray]:
+    """The biggest bright region's outline (white paper on a darker desk), or None."""
     h, w = frame.shape[:2]
     scale = 480 / max(h, w)
     small = cv2.resize(frame, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA) if scale < 1 else frame
@@ -327,12 +485,17 @@ def find_page_quad(frame: np.ndarray, min_area: float = 0.25) -> Optional[np.nda
     return quad
 
 
-def page_fill(frame: np.ndarray) -> float:
+def page_fill(frame: np.ndarray, text_boxes: Optional[List[Box]] = None) -> float:
     """
-    How much of the picture the sheet fills, 0 to 1: a page, a book spread or a lit tablet screen. The paper is the
-    bright region (Otsu), the print is closed away, and the big bright regions are added up. Rough on purpose, and
-    cheap (a small copy of the picture): it only has to tell "the sheet fills the picture" from "the sheet is small".
+    How much of the picture the sheet (or item) fills, 0 to 1: a page, a book spread, a pack or a lit tablet screen.
+    With text_boxes, the area of the item that carries the text (item_mask). Without them the paper is the bright
+    region (Otsu): the print is closed away and the big bright regions are added up. That is rough and cheap, but it
+    also counts a light floor or table as "paper", so the live guidance passes the text it found.
     """
+    if text_boxes:
+        mask, _ = item_mask(frame, text_boxes)
+        if mask is not None:
+            return float(mask.mean() / 255)
     h, w = frame.shape[:2]
     small = cv2.resize(frame, (320, max(1, round(h * 320 / w))), interpolation=cv2.INTER_AREA) if w > 320 else frame
     gray = cv2.cvtColor(small, cv2.COLOR_BGR2GRAY) if small.ndim == 3 else small
@@ -361,12 +524,14 @@ def _needs_warp(quad: np.ndarray, frame_shape) -> bool:
     return tilt > 2.0 or keystone > 0.04
 
 
-def warp_page(frame: np.ndarray, quad: Optional[np.ndarray] = None) -> Tuple[np.ndarray, Optional[np.ndarray]]:
+def warp_page(frame: np.ndarray, quad: Optional[np.ndarray] = None,
+              text_boxes: Optional[List[Box]] = None) -> Tuple[np.ndarray, Optional[np.ndarray]]:
     """
     Flatten the page with a homography. Returns (image, matrix) where matrix maps
     frame -> image (None when nothing was done: no clear page, or already flat).
+    text_boxes (the OCR's lines, when known) make the outline the item that carries the text.
     """
-    quad = find_page_quad(frame) if quad is None else quad
+    quad = find_page_quad(frame, text_boxes=text_boxes) if quad is None else quad
     if quad is None or not _needs_warp(quad, frame.shape):
         return frame, None
     tl, tr, br, bl = quad
@@ -626,17 +791,19 @@ def binarize(image: np.ndarray) -> np.ndarray:
 # =====================================================================
 # Pipelines used by the app
 # =====================================================================
-def capture_candidates(frame: np.ndarray, report: Optional[QualityReport] = None) -> List[Tuple[str, np.ndarray]]:
+def capture_candidates(frame: np.ndarray, report: Optional[QualityReport] = None,
+                       text_boxes: Optional[List[Box]] = None) -> List[Tuple[str, np.ndarray]]:
     """
     Images to try reading for a single item (label, page, ...): the untouched frame
     first, then, only when the page is skewed or the quality is poor, a flattened
     (homography) and / or tone-corrected version. The caller keeps the best read.
+    text_boxes: the lines read on the untouched frame, so the outline is the item that carries them.
     """
     candidates = [("original", frame)]
     if not ENABLED:
         return candidates
     report = report or assess_quality(frame)
-    warped, matrix = warp_page(frame)
+    warped, matrix = warp_page(frame, text_boxes=text_boxes)
     if matrix is not None:
         candidates.append(("flattened", warped))
     if not report.ok:
@@ -1650,7 +1817,7 @@ class LiveGuide:
         gx1, gy1, gx2, gy2 = GUIDE[0] * w, GUIDE[1] * h, GUIDE[2] * w, GUIDE[3] * h
         heights = sorted(l.box[3] - l.box[1] for l in lines)
         if (heights and heights[len(heights) // 2] < MIN_TEXT_HEIGHT * h / 720 and not LiveGuide._read_well(lines)
-                and not (frame is not None and page_fill(frame) >= PAGE_FILLS)):          # the cheap tests first
+                and not (frame is not None and page_fill(frame, [l.box for l in lines]) >= PAGE_FILLS)):   # the cheap tests first
             return "Move closer"
         cx, cy = (x1 + x2) / 2, (y1 + y2) / 2
         gcx, gcy = (gx1 + gx2) / 2, (gy1 + gy2) / 2

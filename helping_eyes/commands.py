@@ -12,7 +12,7 @@ voice if both fail. Settings (environment or .env):
     TTS_ENGINE      kokoro (default) or edge; with kokoro, Edge is still the backup
     KOKORO_VOICE    Kokoro voice name (default af_sarah, American female; also af_heart, af_bella, af_nicole, am_michael, bf_emma)
     KOKORO_SPEED    speaking speed, 1.0 is normal (default 1.0)
-    KOKORO_MODEL_DIR  where kokoro-v1.0.onnx and voices-v1.0.bin are (default helping_eyes/models)
+    KOKORO_MODEL_DIR  where kokoro-v1.0.onnx and voices-v1.0.bin are (default helping_eyes/voice_models)
     TTS_VOICE       Edge voice name (default en-US-JennyNeural, female; also en-US-AriaNeural, en-US-AvaNeural, en-GB-SoniaNeural)
     TTS_RATE        Edge speaking speed, e.g. +10% or -10% (default +0%)
     TTS_ENABLED     set to 0 to always use the browser voice
@@ -130,7 +130,7 @@ TTS_ENABLED = os.getenv("TTS_ENABLED", "1") != "0"
 TTS_ENGINE = os.getenv("TTS_ENGINE", "kokoro").strip().lower()
 KOKORO_VOICE = os.getenv("KOKORO_VOICE", "af_sarah")
 KOKORO_SPEED = float(os.getenv("KOKORO_SPEED", "1.0"))
-KOKORO_DIR = os.getenv("KOKORO_MODEL_DIR", os.path.join(os.path.dirname(os.path.abspath(__file__)), "models"))
+KOKORO_DIR = os.getenv("KOKORO_MODEL_DIR", os.path.join(os.path.dirname(os.path.abspath(__file__)), "voice_models"))
 KOKORO_FILES = {"kokoro-v1.0.onnx": "https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/kokoro-v1.0.onnx",
                 "voices-v1.0.bin": "https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/voices-v1.0.bin"}
 KOKORO_PIECE = 300              # characters per Kokoro call: about 3 s on a laptop CPU, so the first words come quickly

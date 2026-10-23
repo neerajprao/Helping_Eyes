@@ -53,6 +53,25 @@ def test_port_is_free_and_pick_port():
     assert run.port_is_free(quiet) and run.pick_port(quiet) == quiet
 
 
+def test_the_server_gets_the_key_even_though_the_voice_line_imports_the_app_first():
+    # run.py prints the voice line (which imports commands and so assistant) before the server loads .env; the key
+    # must still reach assistant.LLM_API_KEY. A fresh interpreter, so no module is already imported.
+    with tempfile.NamedTemporaryFile("w", suffix=".env", delete=False) as f:
+        f.write("LLM_API_KEY=abc123\n")
+    code = ("import run; run.ENV_FILE = %r; run.load_settings(); run.voice_line(); import assistant; "
+            "print(assistant.LLM_API_KEY)" % f.name)
+    root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    env = {k: v for k, v in os.environ.items() if k != "LLM_API_KEY"}
+    try:
+        out = subprocess.run([sys.executable, "-c", code], cwd=root, env=env, capture_output=True, text=True, timeout=60)
+        assert out.stdout.strip().splitlines()[-1] == "abc123", out.stderr[-500:]
+        out = subprocess.run([sys.executable, "-c", code], cwd=root, env={**env, "LLM_API_KEY": "from-environment"},
+                             capture_output=True, text=True, timeout=60)
+        assert out.stdout.strip().splitlines()[-1] == "from-environment"      # the environment still wins
+    finally:
+        os.unlink(f.name)
+
+
 def test_key_is_read_from_the_environment_or_the_env_file():
     saved_env, saved_file = os.environ.pop("LLM_API_KEY", None), run.ENV_FILE
     try:

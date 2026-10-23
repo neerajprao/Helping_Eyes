@@ -130,6 +130,17 @@ def read_setting(wanted: str) -> str:
     return ""
 
 
+def load_settings() -> None:
+    """Put helping_eyes/.env into the environment before any app module is imported. assistant.py and commands.py read
+    their settings once, when first imported, and voice_line() imports them before the server (which loads .env
+    itself) starts; without this the server ran with no key. A variable already set in the environment is kept."""
+    try:
+        from dotenv import load_dotenv
+    except ImportError:              # reported by missing_packages()
+        return
+    load_dotenv(ENV_FILE, override=False)
+
+
 def read_key() -> str:
     """The language-model key the server will use ('' when there is none)."""
     return read_setting("LLM_API_KEY")
@@ -360,6 +371,7 @@ def main() -> None:
     parser.add_argument("--share", action="store_true", help="also give it a public https address (free Cloudflare tunnel)")
     parser.add_argument("--get-voice", action="store_true", help="download the local Kokoro voice (once, about 350 MB), then stop")
     args = parser.parse_args()
+    load_settings()
 
     if args.get_voice:
         return get_voice()

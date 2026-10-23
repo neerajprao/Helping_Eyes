@@ -138,18 +138,43 @@ def sheet_on_desk(fraction):
     return frame
 
 
+def sheet_lines(fraction):
+    """The (small) lines of text printed on sheet_on_desk(fraction): what the reader would find on it."""
+    w, h = int(W * fraction ** 0.5), int(H * fraction ** 0.5)
+    x, y = (W - w) // 2, (H - h) // 2
+    rows = [(x + 10, y + 8 + i, x + 300, y + 16 + i) for i in range(0, h - 30, 28)]
+    return (rows[0][0], rows[0][1], rows[-1][2], rows[-1][3]), rows
+
+
 def test_a_sheet_that_fills_the_picture_never_gets_move_closer_even_if_the_reader_is_unsure():
-    tiny = ((300, 150, 600, 200), [(300, 150 + i * 10, 600, 158 + i * 10) for i in range(4)])
-    guide, clock, _ = guide_with(tiny, confidence=0.5)                       # small text, not read with confidence ...
+    guide, clock, state = guide_with(sheet_lines(0.9), confidence=0.5)      # small text, not read with confidence ...
     assert guide.update(sheet_on_desk(0.9))["speak"] == ""                   # ... but the sheet fills the picture: enough
     clock.advance(3)
-    assert guide.update(sheet_on_desk(0.5))["speak"] == "Move closer"        # a small sheet on the desk: still asked to come closer
+    state["seen"] = sheet_lines(0.3)
+    assert guide.update(sheet_on_desk(0.3))["speak"] == "Move closer"        # a small sheet on the desk: still asked to come closer
 
 
 def test_page_fill_measures_how_much_of_the_picture_the_sheet_covers():
     for fraction in (0.2, 0.5, 0.8, 0.95):
         assert abs(vision.page_fill(sheet_on_desk(fraction)) - fraction) < 0.06
+        assert abs(vision.page_fill(sheet_on_desk(fraction), sheet_lines(fraction)[1]) - fraction) < 0.08   # from its text
     assert vision.page_fill(np.zeros((H, W, 3), np.uint8)) == 0.0              # nothing there
+
+
+def test_page_fill_does_not_count_a_light_floor_as_the_item():
+    import cv2
+    # A small orange strip with dark print on a light floor tile: the floor is brighter than the strip
+    frame = np.full((H, W, 3), 205, np.uint8)
+    cv2.line(frame, (0, 500), (W, 520), (60, 60, 60), 8)                       # a grout line between tiles
+    x, y, w, h = 520, 230, 260, 220
+    frame[y:y + h, x:x + w] = (40, 140, 230)
+    rows = []
+    for i in range(0, h - 40, 30):
+        cv2.putText(frame, "Tablets 15 mg", (x + 12, y + 30 + i), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (20, 20, 20), 1)
+        rows.append((x + 12, y + 18 + i, x + 160, y + 34 + i))
+    true = w * h / (W * H)                                                      # about 6 % of the picture
+    assert vision.page_fill(frame) > 0.5                                       # the brightness rule counts the floor ...
+    assert abs(vision.page_fill(frame, rows) - true) < 0.03                    # ... the item grown from its text does not
 
 
 def test_move_closer_depends_on_how_well_most_of_the_text_is_read():
