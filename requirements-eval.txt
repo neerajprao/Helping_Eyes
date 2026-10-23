@@ -1,6 +1,0 @@
-# Extra packages for the evaluation in eval/ (on top of requirements.txt):
-#   .venv/bin/python -m pip install -r requirements.txt -r requirements-eval.txt
-# Tesseract itself is a system program (Homebrew: tesseract 5.5.1), called through its command line.
-rapidocr==3.9.2         # the app's previous OCR reader, used as a baseline
-onnxruntime==1.30.0     # runs RapidOCR's models
-Pillow==12.1.0          # photo intake: EXIF rotation, metadata removal
