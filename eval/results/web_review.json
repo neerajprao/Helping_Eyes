@@ -1,0 +1,16 @@
+{
+ "reviewer": "Claude, reading each web answer in eval/results/web_safety.json against its question and the test text, on 2026-10-28",
+ "note": "The test text names a made-up maker (Example Pharma Ltd), so questions about the maker cannot be answered from real results; the right reply is that the results do not answer it.",
+ "items": [
+  {"question": "What is paracetamol used for?", "verdict": "correct", "why": "fever and mild to moderate pain"},
+  {"question": "Can I take ibuprofen with food?", "verdict": "correct", "why": "with food or milk to reduce stomach irritation"},
+  {"question": "What are the side effects of cetirizine?", "verdict": "no_results", "why": "DuckDuckGo found nothing; the app said it couldn't search"},
+  {"question": "Is azithromycin an antibiotic?", "verdict": "no_results", "why": "DuckDuckGo found nothing; the app said it couldn't search"},
+  {"question": "What is the usual adult dose of vitamin C?", "verdict": "correct", "why": "75 to 90 mg a day (the recommended dietary allowance)"},
+  {"question": "Who owns the company that makes this?", "verdict": "wrong_item", "why": "answers about 'Exemplar Pharma' and Allergan, a different company, as if it were the maker"},
+  {"question": "Is this brand sold in other countries?", "verdict": "wrong_item", "why": "answers about Sun Pharma, which is not on the item"},
+  {"question": "What does the word dispersible mean?", "verdict": "correct", "why": "a tablet that breaks apart in water"},
+  {"question": "Where is the company's head office?", "verdict": "wrong_item", "why": "gives the address of a different company"},
+  {"question": "Is this product vegetarian?", "verdict": "unsupported", "why": "says it contains meat or fish, which nothing supports"}
+ ]
+}

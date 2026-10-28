@@ -12,6 +12,17 @@ looking only at the photo (cropped to where text was found and turned upright), 
      "key_lines": ["the most important printed lines, exactly as printed", ...],
      "notes": ""}
 
+Photos of the other categories (food_label, book_page, document, sign_or_screen) use the same fields where they fit
+(a food label has a name, maker, quantity, dates and price), two more ("page": the printed page number(s), "title":
+the running title, heading or the sign's main words), and their own questions, written from the photo with the
+expected answer (null = the photo does not say it, so the answer must say so):
+
+     "questions": [{"key": "x_date", "question": "When is it best before?", "answer": "14/10/2026", "type": "date"},
+                   ...]
+     type: date (month and year must match) | number (every number must appear) | text (letters and digits must
+           appear; "a / b" = either) | code (as text, O read as 0) | expired (verdict on the evaluation date) |
+           yesno ("yes" or "no") | free (not scored by rule: judged by hand, see run_qa.py)
+
 It is one careful reader, not a typed ground truth checked by a second person, and it says so in the report.
 
 Measures:
@@ -35,11 +46,18 @@ import unicodedata
 
 import numpy as np
 
+import common
 import run_photo_eval as R
 
-TODAY = datetime.date.today()
+TODAY = common.EVAL_DATE          # every verdict is checked against the fixed evaluation date
 ENGINES = ["apple_vision", "app_capture", "rapidocr", "tesseract"]
-FIELDS = ["name", "strength", "quantity", "maker", "batch", "mfg", "expiry", "price"]
+FIELDS = ["name", "strength", "quantity", "maker", "batch", "mfg", "expiry", "price", "page", "title"]
+# the kinds of per-photo questions of the other categories (key "x_<kind>"), as named in the summary table
+KINDS = {"x_name": "What is it? (name, title)", "x_date": "Dates (best before, use by, issue date)",
+         "x_expired": "Has it expired?", "x_price": "Price", "x_quantity": "Quantity or amount",
+         "x_ingredients": "Ingredients or contents", "x_page": "Page number", "x_chapter": "Chapter or running title",
+         "x_detail": "A specific detail (time, phone line, number, step)", "x_instructions": "Instructions or warnings",
+         "x_absent": "Something the photo does not say", "x_summary": "What is it about?"}
 SCORED = {"name", "strength", "quantity", "expiry", "expired", "mfg", "batch", "price", "maker", "prescription", "external"}
 REPORT_MD = os.path.join(R.ROOT, "markdown", "eval_photo_report.md")
 SUMMARY_MD = os.path.join(R.ROOT, "markdown", "eval_photo_summary.md")
@@ -119,6 +137,8 @@ def says_not_in_text(a):
 def says_expired(answer):
     """True / False when the answer says expired / not expired; an explicit statement wins over "valid until"."""
     a = norm(answer)
+    a = re.sub(r"\b(?:cannot|can'?t|could not|couldn'?t|unable to|not possible to|no way to)\s+(?:tell|say|know|determine|"
+               r"confirm|check)\b[^.]*", "", a)              # "I cannot tell if it has expired" is no verdict
     if re.search(r"\b(not|hasn'?t|has not|isn'?t|is not)\b[^.]{0,20}\bexpired\b|\bnot yet expired\b", a):
         return False
     if re.search(r"\b(has|have|had|is|already)\b[^.]{0,15}\bexpired\b|\bexpired on\b|\bpast (?:its|the) expiry\b", a):
@@ -197,6 +217,35 @@ def score_answer(key, a, ref, document):
     return None, ""
 
 
+def score_custom(spec, a):
+    """A per-photo question of the other categories: (True | False | None, why)."""
+    want, kind = spec.get("answer"), spec.get("type", "text")
+    if kind == "free":
+        return None, "free text, judged by hand"
+    if want is None:
+        return says_not_in_text(a), "not on the photo: should say so"
+    ans = a["answer"]
+    if kind == "expired":
+        said = says_expired(ans)
+        truth = expired_on(want)
+        return (said == truth, f"expiry {want}: {'expired' if truth else 'not expired'} on {TODAY}") if truth is not None else (None, "not parseable")
+    options = [v.strip() for v in want.split(" / ") if v.strip()]
+    if kind == "date":
+        ok = any((month_years(o) & month_years(ans)) if month_years(o) else alnum(o) in alnum(ans) for o in options)
+    elif kind == "number":
+        ok = any(numbers(o) <= numbers(ans) if numbers(o) else alnum(o) in alnum(ans) for o in options)
+    elif kind == "code":
+        ok = any(code(o) in code(ans) for o in options)
+    elif kind == "yesno":
+        first = norm(ans).split()[:3]
+        refuses = a.get("not_in_text") or re.search(r"\b(text|label|pack\w*)\b[^.]{0,20}\b(does not|doesn'?t|do not|don'?t)\s+"
+                                                    r"(say|mention|state|show|tell)", norm(ans))
+        ok = any(w.strip(",.") == want.lower() for w in first) and not refuses      # "No, it does not contain nuts" is a no
+    else:
+        ok = any(alnum(o) in alnum(ans) for o in options)
+    return ok, f"{kind} {want}"
+
+
 def unsupported_numbers(answer, document):
     import assistant
     doc = numbers(document) | numbers(assistant.expiry_checks(document))   # the app's own date note is given to the model
@@ -238,9 +287,17 @@ def score(pids):
                           "fields": fields, "seconds": ocr["engines"][e]["seconds"],
                           "lines": len(ocr["engines"][e]["lines"])}
         document = "\n".join(l["text"] for l in ocr["engines"]["app_capture"]["lines"])
+        specs = {q["key"]: q for q in ref.get("questions", [])}
         answers = []
         for a in qa["answers"]:
-            ok, why = score_answer(a["key"], a, ref, document) if a["key"] != "read_all" else (None, "the app's own text, no model")
+            if a["key"] == "read_all":
+                ok, why = None, "the app's own text, no model"
+            elif a.get("service_error"):
+                ok, why = None, "service error, not scored"
+            elif a["key"] in specs:
+                ok, why = score_custom(specs[a["key"]], a)
+            else:
+                ok, why = score_answer(a["key"], a, ref, document)
             answers.append({**a, "correct": ok, "why": why,
                             "numbers_not_in_text": unsupported_numbers(a["answer"], document) if a["key"] != "read_all" else []})
         rows.append({"id": pid, "engines": engines, "answers": answers})
@@ -274,7 +331,7 @@ def bootstrap(values, weights=None, n=10000, seed=7):
 
 def summarise(rows, man, refs):
     cats = sorted({man[r["id"]]["category"] for r in rows})
-    summary = {"photos": len(rows), "date": TODAY.isoformat(), "reference": "Claude's reading of each photo",
+    summary = {"categories": {c: sum(1 for r in rows if man[r["id"]]["category"] == c) for c in cats}, "photos": len(rows), "date": TODAY.isoformat(), "reference": "Claude's reading of each photo",
                "qa_model": None, "engines": {}, "by_category": {}, "answers": {}, "checks": {}}
     for e in ENGINES:
         edits = [r["engines"][e]["key_line_edits"] for r in rows]
@@ -316,7 +373,8 @@ def summarise(rows, man, refs):
     by_key = {}
     for r in rows:
         for a in r["answers"]:
-            d = by_key.setdefault(a["key"], {"question": a["question"], "asked": 0, "scored": 0, "correct": 0,
+            key = re.sub(r"\d+$", "", a["key"])                  # x_date2 counts with x_date
+            d = by_key.setdefault(key, {"question": KINDS.get(key, a["question"]), "asked": 0, "scored": 0, "correct": 0,
                                              "said_not_in_text": 0, "with_numbers_not_in_text": 0, "seconds": []})
             d["asked"] += 1
             d["seconds"].append(a["seconds"])
@@ -479,10 +537,13 @@ def _correct_cell(d):
 
 def _summary_md(s, n):
     e = s["engines"]
+    cats = ", ".join(f"{v} {k.replace('_', ' ')}" for k, v in s["categories"].items())
+    flagged = s["checks"]["problems_flagged"]
     L = ["# Photo evaluation: summary", "",
-         f"{n} pharmacy photos (blister strips, cartons, bottles, tubes and personal-care items), taken with a phone, "
-         f"run on {s['date']} at commit `{s['git']['commit']}`{' (with uncommitted changes)' if s['git']['dirty'] else ''}. "
-         "Generated by `eval/run_photo_eval.py score report`; do not edit by hand.", "",
+         f"{n} photos ({cats}), taken with a phone. Answers are checked against the evaluation date {s['date']}; "
+         f"run at commit `{s['git']['commit']}`{' (with uncommitted changes)' if s['git']['dirty'] else ''}. "
+         "Generated by `eval/run_photo_eval.py score report`; do not edit by hand. Photos of the pharmacy categories "
+         "get the same 21 questions; the others get questions written for each photo (see `eval/photo_report.py`).", "",
          "**Reference:** Claude (the assistant model) read every photo itself, before seeing any engine's text, and "
          "wrote down the key printed lines and fields. It is one careful reader, not a typed ground truth checked by "
          "a second person: where Claude misread a pack, an engine is marked wrong for it. Fields Claude could not read "
@@ -529,11 +590,11 @@ def _summary_md(s, n):
     L += ["", "## Image checks (the app's own measures)", "",
           "| Check | App's rule | On these photos (min / median / max) | Flagged by the app |", "|---|---|---|---|",
           f"| Blur: sharpness of the text (variance of the Laplacian) | blurry below 60 | {sh['min']:.0f} / {sh['median']:.0f} / {sh['max']:.0f} | "
-          f"0 photos; {c['blurry_tiles'][0]} of {c['blurry_tiles'][1]} text patches (40 px) below 60, on {c['photos_with_blurry_text_patches']} photos |",
+          f"{flagged.get('blurry', 0)} photos; {c['blurry_tiles'][0]} of {c['blurry_tiles'][1]} text patches (40 px) below 60, on {c['photos_with_blurry_text_patches']} photos |",
           f"| Glare: saturated blobs (grey 250+) | glare at 1 % of the picture | largest {c['glare_percent_max']:.2f} % | "
-          f"0 photos; blobs drawn on {c['photos_with_glare_blobs']} ({gl['glare']} of the {lab['glare']} photos Claude saw glare on, {gl['good']} of the {lab['good']} in good light) |",
-          f"| Light: mean brightness | dark below 50, too bright above 205 | {br['min']:.0f} / {br['median']:.0f} / {br['max']:.0f} | 0 photos |",
-          f"| Contrast: spread of grey | flat below 25 | {ct['min']:.0f} / {ct['median']:.0f} / {ct['max']:.0f} | 0 photos |",
+          f"{flagged.get('glare', 0)} photos; blobs drawn on {c['photos_with_glare_blobs']} ({gl['glare']} of the {lab['glare']} photos Claude saw glare on, {gl['good']} of the {lab['good']} in good light) |",
+          f"| Light: mean brightness | dark below 50, too bright above 205 | {br['min']:.0f} / {br['median']:.0f} / {br['max']:.0f} | {flagged.get('dark', 0)} dark, {flagged.get('bright', 0)} too bright |",
+          f"| Contrast: spread of grey | flat below 25 | {ct['min']:.0f} / {ct['median']:.0f} / {ct['max']:.0f} | {flagged.get('flat', 0)} photos |",
           f"| Slant of the text | straightened from 1.5° (book path only) | {sk['min']:.1f}° / {sk['median']:.1f}° / {sk['max']:.1f}° where measured | "
           f"measured on {sum(v[0] for v in c['slant_by_angle'].values())} photos (flat {c['slant_by_angle']['flat'][0]}/{c['slant_by_angle']['flat'][1]}, "
           f"tilted {c['slant_by_angle']['tilted'][0]}/{c['slant_by_angle']['tilted'][1]}, curved {c['slant_by_angle']['curved'][0]}/{c['slant_by_angle']['curved'][1]}) |",
@@ -549,7 +610,10 @@ def _summary_md(s, n):
           f"- Glare check against Claude's lighting label: both say glare {c['glare_vs_reference']['both']}, only the app "
           f"{c['glare_vs_reference']['app_only']}, only Claude {c['glare_vs_reference']['reference_only']}, neither {c['glare_vs_reference']['neither']}.",
           "", "**What the image checks show, and their limits** (seen on the annotated photos):", "",
-          "- The quality check flagged no photo: it calls glare only for compact *saturated* white blobs covering at least "
+          ("- The quality check flagged no photo" if not c["problems_flagged"] else
+           f"- The quality check flagged only {sum(c['problems_flagged'].values())} problem(s) "
+           f"({', '.join(f'{k} {v}' for k, v in c['problems_flagged'].items())})") +
+          ": it calls glare only for compact *saturated* white blobs covering at least "
           "1 % of the picture. Most glare on these packs is a reflection on foil or gloss that is bright but not saturated "
           "(or, on mirror-like cartons, a dark reflected image), so it is not caught. Magenta boxes show the saturated "
           "blobs that do exist.",

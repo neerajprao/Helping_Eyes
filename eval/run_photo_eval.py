@@ -10,17 +10,21 @@ every question answered by the local Qwen model through the app's own code).
 Stages:
   ocr     Every photo is decoded and downscaled exactly as /api/capture does (server._decode, 1600 px). Then:
             apple_vision   recognize_text(): the app's reader (Apple Vision, accurate, language correction on)
-            app_capture    read_text_enhanced(): what the app really keeps after a capture (best of original /
-                           flattened / tone / binarised), the text every question is answered from
+            app_capture    what the app really keeps after a capture, the text every question is answered from:
+                           read_text_enhanced() (best of original / flattened / tone / binarised), or for a
+                           book_page photo the book path read_page(enhance=True) as book mode reads it (flatten,
+                           spine split, deskew, dewarp, tone; page numbers and running title kept apart)
             rapidocr       RapidOCR() defaults (the app's reader before commit 1759476)
             tesseract      Tesseract 5, --oem 1 --psm 3 -l eng
           Text, confidence, line boxes and time of each are saved.
   cv      The app's image checks, measured with its own functions and thresholds, and drawn on the photo as boxes of
           different colours (see LEGEND): OCR lines, text region, package outline, glare blobs, blurry and dark
           patches, slant. Also a side-by-side picture of the three OCR engines' boxes.
-  qa      QUESTIONS asked about every photo, each one through commands.classify() and a fresh DocAssistant on the
-          local Qwen 3B model (provider "qwen3b", as the page's Model menu), exactly as /api/ask does. "Read
-          everything" is answered by the app without a model.
+  qa      The questions of every photo, each one through commands.classify() and a fresh DocAssistant on the
+          local Qwen 3B model (provider "qwen3b", as the page's "Answers from" menu), exactly as /api/ask does
+          (common.ask). "Read everything" is answered by the app without a model. Pharmacy photos (ms, mb, pc) get
+          QUESTIONS; every other photo gets "Read everything" plus the questions written in its reference (see
+          photo_report.py). Today's date is fixed at common.EVAL_DATE.
   score   Compares each engine and each answer with Claude's reading of the photo (eval/data/private/claude_reference/
           <id>.json, written by looking only at the photo, before any OCR output was read).
   report  markdown/eval_photo_report.md (every photo: pictures with boxes, OCR, checks, all answers; git-ignored)
@@ -43,11 +47,10 @@ import time
 import cv2
 import numpy as np
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-APP = os.path.join(ROOT, "helping_eyes")
-sys.path.insert(0, APP)
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import common  # noqa: E402  (puts the app on sys.path and loads helping_eyes/.env)
 
-EVAL = os.path.join(ROOT, "eval")
+ROOT, APP, EVAL = common.ROOT, common.APP, common.EVAL
 PRIVATE = os.path.join(EVAL, "data", "private")
 IMAGES = os.path.join(PRIVATE, "images")
 OUT = os.path.join(PRIVATE, "photo_eval")
@@ -91,6 +94,7 @@ LEGEND = [
 ]
 COLOR = {k: c for k, c, _ in LEGEND}
 ENGINE_COLOR = {"apple_vision": (60, 200, 60), "rapidocr": (0, 140, 255), "tesseract": (200, 60, 160)}
+PHARMACY = ("ms", "mb", "pc")          # these photos get QUESTIONS; the others the questions in their reference
 ENGINE_NAME = {"apple_vision": "Apple Vision", "app_capture": "App capture (Apple Vision + fixes)",
                "rapidocr": "RapidOCR", "tesseract": "Tesseract"}
 
@@ -101,7 +105,7 @@ TILE_CONTENT = 15    # a tile with less grey-level spread than this is blank (no
 def ids(only=None):
     with open(MANIFEST, newline="", encoding="utf-8") as f:
         rows = list(csv.DictReader(f))
-    order = {"ms": 0, "mb": 1, "pc": 2}
+    order = {"ms": 0, "mb": 1, "pc": 2, "fl": 3, "bp": 4, "dc": 5, "ss": 6}
     rows.sort(key=lambda r: (order.get(r["id"][:2], 9), r["id"]))
     return [r["id"] for r in rows if not only or r["id"] in only]
 
@@ -208,8 +212,14 @@ def stage_ocr(pid, redo):
                    "quad": [[round(x, 1), round(y, 1)] for x, y in (l.quad or vision.box_quad(l.box))]} for l in lines]}
 
     t = time.perf_counter()
-    text, version = vision.read_text_enhanced(frame)
-    result["engines"]["app_capture"] = {"seconds": round(time.perf_counter() - t, 3), "version": version,
+    if manifest()[pid]["category"] == "book_page":       # book mode's path, as /api/book/page reads a page
+        text, layout = vision.read_page(frame, enhance=True)
+        extra = {"version": "book", "page_label": layout.label(), "page_numbers": layout.page_numbers(),
+                 "running_title": layout.running_title() or "", "facts": layout.summary(), "pages": len(layout.pages)}
+    else:
+        text, version = vision.read_text_enhanced(frame)
+        extra = {"version": version}
+    result["engines"]["app_capture"] = {"seconds": round(time.perf_counter() - t, 3), **extra,
                                         "lines": [{"text": s} for s in text.split("\n") if s.strip()]}
 
     t = time.perf_counter()
@@ -430,40 +440,34 @@ def stage_cv(pid, redo):
 
 
 # ------------------------------------------------------------------ questions (local Qwen, the app's own path)
+def questions(pid):
+    """(key, question) pairs asked about a photo: QUESTIONS for pharmacy photos, else its reference's questions."""
+    if pid[:2] in PHARMACY:
+        return QUESTIONS
+    ref = common.load_json(os.path.join(REFS, pid + ".json"))
+    if not ref:
+        raise RuntimeError("no reference yet: the questions of this photo are written in it")
+    return [("read_all", "Read everything")] + [(q["key"], q["question"]) for q in ref["questions"]]
+
+
 def stage_qa(pid, redo):
     if read("qa", pid) and not redo:
         return
-    import assistant
-    from commands import classify
+    assistant = common.fix_date()
     ocr = read("ocr", pid)
     document = text_of(ocr, "app_capture")
+    app = ocr["engines"]["app_capture"]
     answers = []
-    for key, question in QUESTIONS:
-        cmd = classify(question)
-        t = time.perf_counter()
+    for key, question in questions(pid):
         if not document.strip():
-            answers.append({"key": key, "question": question, "route": cmd.name, "seconds": 0.0, "not_in_text": None,
+            answers.append({"key": key, "question": question, "route": "no text", "seconds": 0.0, "not_in_text": None,
                             "answer": "I haven't captured any text yet. Hold something up to the camera."})
             continue
-        if cmd.name == "read_all":
-            answers.append({"key": key, "question": question, "route": "read_all (no model)", "seconds": 0.0,
-                            "not_in_text": False, "answer": document})
-            continue
-        doc = assistant.DocAssistant()
-        doc.set_provider("qwen3b")
-        doc.set_document(document)
-        first, parts = None, []
-        for s in doc.ask(cmd.query):
-            if first is None:
-                first = time.perf_counter() - t
-            if s == assistant.READ_ALL:
-                parts = [document]
-                break
-            parts.append(s)
-        answers.append({"key": key, "question": question, "route": cmd.name, "answer": " ".join(parts),
-                        "not_in_text": doc.last_not_in_text, "first_sentence_s": round(first or 0, 2),
-                        "seconds": round(time.perf_counter() - t, 2)})
-    save("qa", pid, {"id": pid, "model": assistant.QWEN_MODELS["qwen3b"], "date": datetime.date.today().isoformat(),
+        r = common.ask(question, document, "qwen3b", app.get("facts", ""), app.get("page_label", ""))
+        answers.append({"key": key, "question": question, "route": r["route"], "answer": r["answer"],
+                        "not_in_text": r["not_in_text"], "first_sentence_s": round(r["first_s"] or 0, 2),
+                        "seconds": round(r["total_s"] or 0, 2), "service_error": r["service_error"]})
+    save("qa", pid, {"id": pid, "model": assistant.QWEN_MODELS["qwen3b"], "date": common.EVAL_DATE.isoformat(),
                      "document_source": "app_capture", "answers": answers, **git_state()})
 
 

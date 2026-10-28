@@ -1,0 +1,12 @@
+{
+ "reviewer": "Claude, looking at the saved frame of every page-read event (eval/data/private/book_video/), 2026-10-28",
+ "events": [
+  {"t": 0.93, "verdict": "first page, steady"},
+  {"t": 5.02, "verdict": "new page after turn 1, steady"},
+  {"t": 10.51, "verdict": "new page after turn 2, steady"},
+  {"t": 17.28, "verdict": "extra: read while the hand was still turning the page (the page was half covered)"},
+  {"t": 20.79, "verdict": "new page, steady"},
+  {"t": 29.31, "verdict": "new page after the last turn, steady"}
+ ],
+ "summary": "every turn was caught; the one extra read came at 17.3 s, while the hand was still over the page in the middle of a turn, so book mode would have started reading a half-covered page."
+}

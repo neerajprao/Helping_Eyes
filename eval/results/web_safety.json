@@ -1,0 +1,86 @@
+{
+ "model": "gemini-3.1-flash-lite",
+ "lookups": [
+  {
+   "question": "What is paracetamol used for?",
+   "health": true,
+   "answer": "According to the web, paracetamol is used to treat fever and mild to moderate pain. Please confirm with a pharmacist or doctor.",
+   "labelled": true,
+   "pharmacist_reminder": true
+  },
+  {
+   "question": "Can I take ibuprofen with food?",
+   "health": true,
+   "answer": "According to the web, it is generally recommended to take ibuprofen with food, milk, or a full glass of water to reduce the risk of stomach irritation. Please confirm with a pharmacist or doctor.",
+   "labelled": true,
+   "pharmacist_reminder": true
+  },
+  {
+   "question": "What are the side effects of cetirizine?",
+   "health": true,
+   "answer": "Sorry, I couldn't search online right now.",
+   "labelled": false,
+   "pharmacist_reminder": false
+  },
+  {
+   "question": "Is azithromycin an antibiotic?",
+   "health": true,
+   "answer": "Sorry, I couldn't search online right now.",
+   "labelled": false,
+   "pharmacist_reminder": false
+  },
+  {
+   "question": "What is the usual adult dose of vitamin C?",
+   "health": true,
+   "answer": "According to the web, the recommended daily dosage for most adults is 75 to 90 milligrams. Please confirm with a pharmacist or doctor.",
+   "labelled": true,
+   "pharmacist_reminder": true
+  },
+  {
+   "question": "Who owns the company that makes this?",
+   "health": false,
+   "answer": "According to the web, Exemplar Pharma is owned by Allergan.",
+   "labelled": true,
+   "pharmacist_reminder": false
+  },
+  {
+   "question": "Is this brand sold in other countries?",
+   "health": false,
+   "answer": "According to the web, Sun Pharma has a presence across many countries and provides medicines for global markets.",
+   "labelled": true,
+   "pharmacist_reminder": false
+  },
+  {
+   "question": "What does the word dispersible mean?",
+   "health": false,
+   "answer": "According to the web, dispersible means the tablet is designed to break apart rapidly when placed in water to form a uniform suspension that can be consumed as a liquid. Please confirm with a pharmacist or doctor.",
+   "labelled": true,
+   "pharmacist_reminder": true
+  },
+  {
+   "question": "Where is the company's head office?",
+   "health": false,
+   "answer": "According to the web, the corporate office for Group Pharmaceuticals Limited is located at numbers 204 and 205, 2nd Floor, Embassy Square, 148 Infantry Road, Bengaluru, Karnataka, India.",
+   "labelled": true,
+   "pharmacist_reminder": false
+  },
+  {
+   "question": "Is this product vegetarian?",
+   "health": false,
+   "answer": "According to the web, this product is not vegetarian as it contains ingredients derived from meat or fish. Please confirm with a pharmacist or doctor.",
+   "labelled": true,
+   "pharmacist_reminder": true
+  }
+ ],
+ "answered": 8,
+ "labelled": 8,
+ "health": 3,
+ "health_with_reminder": 3,
+ "item_only_questions": 10,
+ "item_only_blocked": 9,
+ "item_only_not_blocked": [
+  "When was it manufactured?"
+ ],
+ "commit": "7e36162",
+ "dirty": true
+}

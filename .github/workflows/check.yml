@@ -18,3 +18,5 @@ jobs:
       - name: Run every test (the OCR, book mode and server tests use Apple Vision; none needs a key or a model)
         working-directory: helping_eyes
         run: for t in tests/test_*.py; do python "$t" || exit 1; done
+      - name: Check the evaluation's scoring rules (no photos, models or network)
+        run: python eval/test_scoring.py

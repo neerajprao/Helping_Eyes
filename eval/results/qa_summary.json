@@ -1,0 +1,451 @@
+{
+ "date": "2026-10-19",
+ "photos": 46,
+ "questions": 708,
+ "subset": {
+  "seed": 3235,
+  "pharmacy": [
+   "mb06",
+   "mb08",
+   "mb12",
+   "mb16",
+   "mb23",
+   "mb24",
+   "mb28",
+   "mb32",
+   "mb36",
+   "mb53",
+   "mb57",
+   "mb62",
+   "mb63",
+   "mb67",
+   "mb68",
+   "mb70",
+   "ms02",
+   "ms03",
+   "ms11",
+   "ms16",
+   "ms19",
+   "ms25",
+   "ms26",
+   "ms28",
+   "ms39",
+   "pc01",
+   "pc08",
+   "pc12",
+   "pc16",
+   "pc24"
+  ],
+  "other": [
+   "bp01",
+   "bp02",
+   "bp03",
+   "bp04",
+   "bp05",
+   "dc01",
+   "dc02",
+   "dc03",
+   "fl01",
+   "fl02",
+   "fl03",
+   "fl04",
+   "fl05",
+   "fl06",
+   "ss01",
+   "ss02"
+  ],
+  "note": "pharmacy photos drawn once per (category, lighting, angle) group; every photo of the other categories that has a reference"
+ },
+ "categories": {
+  "book_page": 5,
+  "document": 3,
+  "food_label": 6,
+  "medicine_box": 16,
+  "medicine_strip": 9,
+  "personal_care": 5,
+  "sign_or_screen": 2
+ },
+ "models": {
+  "gemini": "gemini-3.1-flash-lite",
+  "qwen3b": "qwen2.5:3b-instruct"
+ },
+ "temperature": 0.2,
+ "commit": "7e36162",
+ "dirty": true,
+ "by_model": {
+  "qwen3b": {
+   "answered": 708,
+   "service_errors": 0,
+   "retries": 0,
+   "accuracy": {
+    "correct": 229,
+    "scored": 355,
+    "accuracy": 0.6451,
+    "ci95": [
+     0.5734,
+     0.7107
+    ]
+   },
+   "accuracy_pharmacy": {
+    "correct": 178,
+    "scored": 260,
+    "accuracy": 0.6846,
+    "ci95": [
+     0.5967,
+     0.7653
+    ]
+   },
+   "accuracy_other": {
+    "correct": 51,
+    "scored": 95,
+    "accuracy": 0.5368,
+    "ci95": [
+     0.439,
+     0.6341
+    ]
+   },
+   "accuracy_value_in_text": {
+    "correct": 97,
+    "scored": 169,
+    "accuracy": 0.574,
+    "ci95": [
+     0.4757,
+     0.6687
+    ]
+   },
+   "accuracy_value_not_in_text": {
+    "correct": 3,
+    "scored": 43,
+    "accuracy": 0.0698,
+    "ci95": [
+     0.0,
+     0.127
+    ]
+   },
+   "not_in_text_recall": {
+    "yes": 123,
+    "of": 131,
+    "rate": 0.9389,
+    "ci95": [
+     0.899,
+     0.973
+    ]
+   },
+   "false_not_in_text": {
+    "yes": 44,
+    "of": 169,
+    "rate": 0.2604,
+    "ci95": [
+     0.1916,
+     0.3315
+    ]
+   },
+   "numbers_not_in_text": {
+    "yes": 4,
+    "of": 708,
+    "rate": 0.0056,
+    "ci95": [
+     0.0013,
+     0.0117
+    ]
+   },
+   "web_offers_on_item_only": 0,
+   "first_sentence_s": {
+    "n": 708,
+    "p50": 0.448,
+    "p90": 1.118,
+    "p95": 1.46,
+    "mean": 0.603,
+    "min": 0,
+    "max": 3.861
+   },
+   "total_s": {
+    "n": 708,
+    "p50": 0.451,
+    "p90": 1.177,
+    "p95": 1.575,
+    "mean": 0.636,
+    "min": 0.147,
+    "max": 4.538
+   },
+   "by_question": {
+    "batch": [
+     17,
+     24
+    ],
+    "expired": [
+     22,
+     27
+    ],
+    "expiry": [
+     20,
+     27
+    ],
+    "external": [
+     2,
+     2
+    ],
+    "maker": [
+     23,
+     30
+    ],
+    "mfg": [
+     19,
+     28
+    ],
+    "name": [
+     20,
+     30
+    ],
+    "prescription": [
+     4,
+     6
+    ],
+    "price": [
+     17,
+     27
+    ],
+    "quantity": [
+     17,
+     29
+    ],
+    "strength": [
+     17,
+     30
+    ],
+    "x_absent": [
+     12,
+     12
+    ],
+    "x_date": [
+     6,
+     7
+    ],
+    "x_detail": [
+     7,
+     16
+    ],
+    "x_detail2": [
+     8,
+     15
+    ],
+    "x_detail3": [
+     5,
+     11
+    ],
+    "x_detail4": [
+     3,
+     5
+    ],
+    "x_expired": [
+     0,
+     3
+    ],
+    "x_ingredients": [
+     1,
+     1
+    ],
+    "x_name": [
+     2,
+     7
+    ],
+    "x_page": [
+     0,
+     7
+    ],
+    "x_price": [
+     4,
+     6
+    ],
+    "x_quantity": [
+     3,
+     5
+    ]
+   }
+  },
+  "gemini": {
+   "answered": 405,
+   "service_errors": 5,
+   "retries": 42,
+   "accuracy": {
+    "correct": 156,
+    "scored": 179,
+    "accuracy": 0.8715,
+    "ci95": [
+     0.7929,
+     0.9355
+    ]
+   },
+   "accuracy_pharmacy": {
+    "correct": 156,
+    "scored": 179,
+    "accuracy": 0.8715,
+    "ci95": [
+     0.7929,
+     0.9355
+    ]
+   },
+   "accuracy_other": {
+    "correct": 0,
+    "scored": 0,
+    "accuracy": null,
+    "ci95": null
+   },
+   "accuracy_value_in_text": {
+    "correct": 69,
+    "scored": 76,
+    "accuracy": 0.9079,
+    "ci95": [
+     0.8507,
+     0.9647
+    ]
+   },
+   "accuracy_value_not_in_text": {
+    "correct": 7,
+    "scored": 17,
+    "accuracy": 0.4118,
+    "ci95": [
+     0.1818,
+     0.8333
+    ]
+   },
+   "not_in_text_recall": {
+    "yes": 76,
+    "of": 82,
+    "rate": 0.9268,
+    "ci95": [
+     0.8413,
+     0.9833
+    ]
+   },
+   "false_not_in_text": {
+    "yes": 5,
+    "of": 76,
+    "rate": 0.0658,
+    "ci95": [
+     0.0,
+     0.127
+    ]
+   },
+   "numbers_not_in_text": {
+    "yes": 7,
+    "of": 400,
+    "rate": 0.0175,
+    "ci95": [
+     0.0048,
+     0.0333
+    ]
+   },
+   "web_offers_on_item_only": 0,
+   "first_sentence_s": {
+    "n": 400,
+    "p50": 3.224,
+    "p90": 16.468,
+    "p95": 26.89,
+    "mean": 6.576,
+    "min": 0.821,
+    "max": 49.683
+   },
+   "total_s": {
+    "n": 400,
+    "p50": 3.235,
+    "p90": 16.468,
+    "p95": 26.896,
+    "mean": 6.581,
+    "min": 0.822,
+    "max": 49.683
+   },
+   "by_question": {
+    "batch": [
+     16,
+     18
+    ],
+    "expired": [
+     15,
+     19
+    ],
+    "expiry": [
+     17,
+     19
+    ],
+    "maker": [
+     20,
+     20
+    ],
+    "mfg": [
+     19,
+     20
+    ],
+    "name": [
+     17,
+     20
+    ],
+    "prescription": [
+     4,
+     4
+    ],
+    "price": [
+     17,
+     19
+    ],
+    "quantity": [
+     15,
+     20
+    ],
+    "strength": [
+     16,
+     20
+    ]
+   }
+  }
+ },
+ "paired": {
+  "n": 179,
+  "gemini_minus_qwen": 0.162,
+  "ci95": [
+   0.0886,
+   0.2536
+  ],
+  "both_right": 121,
+  "only_gemini": 35,
+  "only_qwen": 6,
+  "both_wrong": 17
+ },
+ "judge": {
+  "qwen3b": {
+   "correct": 81,
+   "partial": 12,
+   "wrong": 7,
+   "unsupported": 0,
+   "n": 100,
+   "correct_rate": 0.81,
+   "correct_ci95": [
+    0.7283,
+    0.8899
+   ],
+   "unsupported_rate": 0.0,
+   "unsupported_ci95": [
+    0.0,
+    0.0
+   ]
+  },
+  "gemini": {
+   "correct": 98,
+   "partial": 0,
+   "wrong": 0,
+   "unsupported": 2,
+   "n": 100,
+   "correct_rate": 0.98,
+   "correct_ci95": [
+    0.9375,
+    1.0
+   ],
+   "unsupported_rate": 0.02,
+   "unsupported_ci95": [
+    0.0,
+    0.0625
+   ]
+  },
+  "judge": "Claude (Anthropic), reading blind A/B pairs; a different vendor from both models under test"
+ }
+}

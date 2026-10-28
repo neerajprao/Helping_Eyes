@@ -1,0 +1,1562 @@
+{
+ "summary": {
+  "date": "2026-10-19",
+  "cases": 22,
+  "relative_cases": 2,
+  "expired_cases": 11,
+  "question": "Has it expired?",
+  "models": {
+   "gemini": "gemini-3.1-flash-lite",
+   "qwen3b": "qwen2.5:3b-instruct"
+  },
+  "code": {
+   "correct": 22,
+   "scored": 22,
+   "service_errors": 0,
+   "accuracy": 1.0,
+   "wrong": [],
+   "date_stated": 0,
+   "date_right": 0,
+   "date_wrong": []
+  },
+  "code_relative": {
+   "correct": 2,
+   "scored": 2,
+   "service_errors": 0,
+   "accuracy": 1.0,
+   "wrong": [],
+   "date_stated": 0,
+   "date_right": 0,
+   "date_wrong": []
+  },
+  "commit": "7e36162",
+  "dirty": true,
+  "app_gemini": {
+   "correct": 22,
+   "scored": 22,
+   "service_errors": 0,
+   "accuracy": 1.0,
+   "wrong": [],
+   "date_stated": 22,
+   "date_right": 22,
+   "date_wrong": []
+  },
+  "app_gemini_relative": {
+   "correct": 2,
+   "scored": 2,
+   "service_errors": 0,
+   "accuracy": 1.0,
+   "wrong": [],
+   "date_stated": 0,
+   "date_right": 0,
+   "date_wrong": []
+  },
+  "app_qwen3b": {
+   "correct": 22,
+   "scored": 22,
+   "service_errors": 0,
+   "accuracy": 1.0,
+   "wrong": [],
+   "date_stated": 22,
+   "date_right": 21,
+   "date_wrong": [
+    "e09"
+   ]
+  },
+  "app_qwen3b_relative": {
+   "correct": 1,
+   "scored": 2,
+   "service_errors": 0,
+   "accuracy": 0.5,
+   "wrong": [
+    "r01"
+   ],
+   "date_stated": 0,
+   "date_right": 0,
+   "date_wrong": []
+  },
+  "llm_only_gemini": {
+   "correct": 21,
+   "scored": 22,
+   "service_errors": 0,
+   "accuracy": 0.9545,
+   "wrong": [
+    "e03"
+   ],
+   "date_stated": 22,
+   "date_right": 22,
+   "date_wrong": []
+  },
+  "llm_only_gemini_relative": {
+   "correct": 1,
+   "scored": 2,
+   "service_errors": 0,
+   "accuracy": 0.5,
+   "wrong": [
+    "r01"
+   ],
+   "date_stated": 0,
+   "date_right": 0,
+   "date_wrong": []
+  },
+  "llm_only_qwen3b": {
+   "correct": 5,
+   "scored": 22,
+   "service_errors": 0,
+   "accuracy": 0.2273,
+   "wrong": [
+    "e03",
+    "e04",
+    "e05",
+    "e06",
+    "e08",
+    "e10",
+    "e11",
+    "e12",
+    "e13",
+    "e14",
+    "e15",
+    "e16",
+    "e17",
+    "e18",
+    "e19",
+    "e20",
+    "e21"
+   ],
+   "date_stated": 11,
+   "date_right": 9,
+   "date_wrong": [
+    "e09",
+    "e20"
+   ]
+  },
+  "llm_only_qwen3b_relative": {
+   "correct": 2,
+   "scored": 2,
+   "service_errors": 0,
+   "accuracy": 1.0,
+   "wrong": [],
+   "date_stated": 0,
+   "date_right": 0,
+   "date_wrong": []
+  }
+ },
+ "cases": [
+  {
+   "id": "e01",
+   "text": "Paracetamol Tablets IP 500 mg\nB.No. PT2411\nMFG. DEC.24\nEXP. NOV.26",
+   "expired": false,
+   "relative": false,
+   "code": {
+    "verdict": false,
+    "found": "EXP. NOV.26 -> valid until 2026-11-30",
+    "correct": true
+   },
+   "app_gemini": {
+    "answer": "No, it has not expired. It is valid until the end of November 2026.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 1.388,
+    "total_s": 1.396,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": false,
+    "correct": true,
+    "date_ok": true
+   },
+   "app_qwen3b": {
+    "answer": "It has not expired; it is still valid until November 30, 2026.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 3.198,
+    "total_s": 3.198,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": false,
+    "correct": true,
+    "date_ok": true
+   },
+   "llm_only_gemini": {
+    "answer": "The medicine has not expired yet. It is valid until the end of November 2026.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 1.494,
+    "total_s": 1.497,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": false,
+    "correct": true,
+    "date_ok": true
+   },
+   "llm_only_qwen3b": {
+    "answer": "The text doesn't show an expiry date, only a manufacturing date of December 24. It's valid until November 26.",
+    "route": "question",
+    "not_in_text": true,
+    "first_s": 0.669,
+    "total_s": 0.826,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": false,
+    "correct": true,
+    "date_ok": true
+   }
+  },
+  {
+   "id": "e02",
+   "text": "Cetirizine Tablets IP 10 mg\nMfg.Date: JAN.2025\nExp.Date: DEC.2026",
+   "expired": false,
+   "relative": false,
+   "code": {
+    "verdict": false,
+    "found": "Exp.Date: DEC.2026 -> valid until 2026-12-31",
+    "correct": true
+   },
+   "app_gemini": {
+    "answer": "No, it has not expired. It is valid until the end of December 2026.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 29.46,
+    "total_s": 29.47,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": false,
+    "correct": true,
+    "date_ok": true
+   },
+   "app_qwen3b": {
+    "answer": "It has not expired; it is valid until December 31, 2026.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 0.792,
+    "total_s": 0.792,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": false,
+    "correct": true,
+    "date_ok": true
+   },
+   "llm_only_gemini": {
+    "answer": "No, it has not expired. It is valid until the end of December 2026.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 5.591,
+    "total_s": 5.617,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": false,
+    "correct": true,
+    "date_ok": true
+   },
+   "llm_only_qwen3b": {
+    "answer": "The text doesn't show an expiry date, only the manufacturing date of JAN.2025 and the expiration date of DEC.2026. Today's date is 19 October 2026, so it has not expired yet.",
+    "route": "question",
+    "not_in_text": true,
+    "first_s": 0.898,
+    "total_s": 1.256,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": false,
+    "correct": true,
+    "date_ok": true
+   }
+  },
+  {
+   "id": "e03",
+   "text": "Amoxycillin Capsules IP 500 mg\nMFD: 01/2024\nEXP: 12/2025",
+   "expired": true,
+   "relative": false,
+   "code": {
+    "verdict": true,
+    "found": "EXP: 12/2025 -> valid until 2025-12-31",
+    "correct": true
+   },
+   "app_gemini": {
+    "answer": "Yes, this medication has expired. It was valid until the end of December 2025.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 3.539,
+    "total_s": 3.557,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": true,
+    "correct": true,
+    "date_ok": true
+   },
+   "app_qwen3b": {
+    "answer": "It has expired. Valid until December 31, 2025, and today is after that date.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 0.508,
+    "total_s": 0.852,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": true,
+    "correct": true,
+    "date_ok": true
+   },
+   "llm_only_gemini": {
+    "answer": "The medication has not expired. It is valid until the end of December 2025.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 6.119,
+    "total_s": 6.139,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": false,
+    "correct": false,
+    "date_ok": true
+   },
+   "llm_only_qwen3b": {
+    "answer": "The text doesn't show an expiry date.",
+    "route": "question",
+    "not_in_text": true,
+    "first_s": 0.501,
+    "total_s": 0.501,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": null,
+    "correct": false,
+    "date_ok": null
+   }
+  },
+  {
+   "id": "e04",
+   "text": "Pantoprazole Gastro-resistant Tablets\nMfg. APR. 2024\nExp. APR. 2026",
+   "expired": true,
+   "relative": false,
+   "code": {
+    "verdict": true,
+    "found": "Exp. APR. 2026 -> valid until 2026-04-30",
+    "correct": true
+   },
+   "app_gemini": {
+    "answer": "Yes, this medication has expired. It was valid until the end of April 2026.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 0.9,
+    "total_s": 0.902,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": true,
+    "correct": true,
+    "date_ok": true
+   },
+   "app_qwen3b": {
+    "answer": "It has expired. It was valid until April 30, 2026.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 0.467,
+    "total_s": 0.725,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": true,
+    "correct": true,
+    "date_ok": true
+   },
+   "llm_only_gemini": {
+    "answer": "Yes, this medication has expired. It was valid until April 2026.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 1.134,
+    "total_s": 1.136,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": true,
+    "correct": true,
+    "date_ok": true
+   },
+   "llm_only_qwen3b": {
+    "answer": "The text doesn't show an expiry date, only a manufacturing date of April 2024. It's valid until April 2026.",
+    "route": "question",
+    "not_in_text": true,
+    "first_s": 0.705,
+    "total_s": 0.893,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": false,
+    "correct": false,
+    "date_ok": true
+   }
+  },
+  {
+   "id": "e05",
+   "text": "Vitamin C chewable tablets\nMFG JUL 25\nEXP JUL 28",
+   "expired": false,
+   "relative": false,
+   "code": {
+    "verdict": false,
+    "found": "EXP JUL 28 -> valid until 2028-07-31",
+    "correct": true
+   },
+   "app_gemini": {
+    "answer": "It has not expired. These tablets are good to use until the end of July 2028.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 0.9,
+    "total_s": 0.929,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": false,
+    "correct": true,
+    "date_ok": true
+   },
+   "app_qwen3b": {
+    "answer": "It has not expired; it is still good until July 31, 2028.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 0.766,
+    "total_s": 0.766,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": false,
+    "correct": true,
+    "date_ok": true
+   },
+   "llm_only_gemini": {
+    "answer": "No, it has not expired. It is valid until the end of July 2028.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 3.944,
+    "total_s": 3.967,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": false,
+    "correct": true,
+    "date_ok": true
+   },
+   "llm_only_qwen3b": {
+    "answer": "The text doesn't show an expiry date.",
+    "route": "question",
+    "not_in_text": true,
+    "first_s": 0.497,
+    "total_s": 0.498,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": null,
+    "correct": false,
+    "date_ok": null
+   }
+  },
+  {
+   "id": "e06",
+   "text": "Azithromycin Tablets 500 mg\nMfg. Date DEC-2023\nExp. Date NOV-2025",
+   "expired": true,
+   "relative": false,
+   "code": {
+    "verdict": true,
+    "found": "Exp. Date NOV-2025 -> valid until 2025-11-30",
+    "correct": true
+   },
+   "app_gemini": {
+    "answer": "Yes, this medication has expired. It was valid until the end of November 2025.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 15.822,
+    "total_s": 15.914,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": true,
+    "correct": true,
+    "date_ok": true
+   },
+   "app_qwen3b": {
+    "answer": "It has expired. It was valid until November 30, 2025.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 0.511,
+    "total_s": 0.772,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": true,
+    "correct": true,
+    "date_ok": true
+   },
+   "llm_only_gemini": {
+    "answer": "Yes, this medication has expired. It was valid until the end of November 2025.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 6.667,
+    "total_s": 6.699,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": true,
+    "correct": true,
+    "date_ok": true
+   },
+   "llm_only_qwen3b": {
+    "answer": "The text doesn't show an expiry date, only the manufacturing date and expiration date are provided.",
+    "route": "question",
+    "not_in_text": true,
+    "first_s": 0.669,
+    "total_s": 0.669,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": null,
+    "correct": false,
+    "date_ok": null
+   }
+  },
+  {
+   "id": "e07",
+   "text": "Ibuprofen Tablets IP 400 mg\nMfd. 01 2024\nExp. 12.2026",
+   "expired": false,
+   "relative": false,
+   "code": {
+    "verdict": false,
+    "found": "Exp. 12.2026 -> valid until 2026-12-31",
+    "correct": true
+   },
+   "app_gemini": {
+    "answer": "It has not expired. It is good to use until the end of December 2026.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 6.563,
+    "total_s": 6.569,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": false,
+    "correct": true,
+    "date_ok": true
+   },
+   "app_qwen3b": {
+    "answer": "It has not expired; it is still valid until December 31, 2026.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 0.805,
+    "total_s": 0.805,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": false,
+    "correct": true,
+    "date_ok": true
+   },
+   "llm_only_gemini": {
+    "answer": "No, it has not expired. It is valid until the end of December 2026.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 7.885,
+    "total_s": 7.921,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": false,
+    "correct": true,
+    "date_ok": true
+   },
+   "llm_only_qwen3b": {
+    "answer": "The text doesn't show an expiry date, only a manufacturing date of January 2024. It is valid until December 2026.",
+    "route": "question",
+    "not_in_text": true,
+    "first_s": 0.705,
+    "total_s": 0.898,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": false,
+    "correct": true,
+    "date_ok": true
+   }
+  },
+  {
+   "id": "e08",
+   "text": "Metformin Tablets 500 mg\nMFG: 01-2024\nEXP: 09-2026",
+   "expired": true,
+   "relative": false,
+   "code": {
+    "verdict": true,
+    "found": "EXP: 09-2026 -> valid until 2026-09-30",
+    "correct": true
+   },
+   "app_gemini": {
+    "answer": "Yes, this medication has expired. It was valid until September 30, 2026.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 8.265,
+    "total_s": 8.282,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": true,
+    "correct": true,
+    "date_ok": true
+   },
+   "app_qwen3b": {
+    "answer": "It has expired. It was valid until September 30, 2026.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 0.491,
+    "total_s": 0.75,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": true,
+    "correct": true,
+    "date_ok": true
+   },
+   "llm_only_gemini": {
+    "answer": "Yes, this medication has expired. It was valid until the end of September 2026.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 8.578,
+    "total_s": 8.588,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": true,
+    "correct": true,
+    "date_ok": true
+   },
+   "llm_only_qwen3b": {
+    "answer": "The text doesn't show an expiry date.",
+    "route": "question",
+    "not_in_text": true,
+    "first_s": 0.493,
+    "total_s": 0.493,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": null,
+    "correct": false,
+    "date_ok": null
+   }
+  },
+  {
+   "id": "e09",
+   "text": "Cough syrup 100 ml\nMfg. Dt. 11/24\nExp. Dt. 10/26",
+   "expired": false,
+   "relative": false,
+   "code": {
+    "verdict": false,
+    "found": "Exp. Dt. 10/26 -> valid until 2026-10-31",
+    "correct": true
+   },
+   "app_gemini": {
+    "answer": "No, it has not expired. It is valid until the end of October 2026.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 4.118,
+    "total_s": 4.126,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": false,
+    "correct": true,
+    "date_ok": true
+   },
+   "app_qwen3b": {
+    "answer": "It has not expired yet; it is valid until November 3rd, 2026.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 0.788,
+    "total_s": 0.788,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": false,
+    "correct": true,
+    "date_ok": false
+   },
+   "llm_only_gemini": {
+    "answer": "The cough syrup expires in October 2026, so it is still valid for use through the end of this month.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 29.012,
+    "total_s": 29.012,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": false,
+    "correct": true,
+    "date_ok": true
+   },
+   "llm_only_qwen3b": {
+    "answer": "The text doesn't show an expiry date, only a manufacturing date of November 24 and today's date is October 19, so it has not expired yet.",
+    "route": "question",
+    "not_in_text": true,
+    "first_s": 0.918,
+    "total_s": 0.918,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": false,
+    "correct": true,
+    "date_ok": false
+   }
+  },
+  {
+   "id": "e10",
+   "text": "ORS powder sachet\nMFG: 09/24\nEXP: 08/26",
+   "expired": true,
+   "relative": false,
+   "code": {
+    "verdict": true,
+    "found": "EXP: 08/26 -> valid until 2026-08-31",
+    "correct": true
+   },
+   "app_gemini": {
+    "answer": "Yes, this product has expired. It was valid until the end of August 2026.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 14.018,
+    "total_s": 14.018,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": true,
+    "correct": true,
+    "date_ok": true
+   },
+   "app_qwen3b": {
+    "answer": "It has expired. It was valid until August 31, 2026.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 0.453,
+    "total_s": 0.713,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": true,
+    "correct": true,
+    "date_ok": true
+   },
+   "llm_only_gemini": {
+    "answer": "Yes, this product has expired. It was valid until August 2026.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 1.58,
+    "total_s": 1.588,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": true,
+    "correct": true,
+    "date_ok": true
+   },
+   "llm_only_qwen3b": {
+    "answer": "The text doesn't show an expiry date.",
+    "route": "question",
+    "not_in_text": true,
+    "first_s": 0.477,
+    "total_s": 0.478,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": null,
+    "correct": false,
+    "date_ok": null
+   }
+  },
+  {
+   "id": "e11",
+   "text": "Moisturising lotion 200 ml\nMFG 12/25\nEXP 06/28",
+   "expired": false,
+   "relative": false,
+   "code": {
+    "verdict": false,
+    "found": "EXP 06/28 -> valid until 2028-06-30",
+    "correct": true
+   },
+   "app_gemini": {
+    "answer": "No, it has not expired. It is good to use until the end of June 2028.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 2.962,
+    "total_s": 2.976,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": false,
+    "correct": true,
+    "date_ok": true
+   },
+   "app_qwen3b": {
+    "answer": "It has not expired; it is still good until June 30, 2028.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 0.764,
+    "total_s": 0.764,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": false,
+    "correct": true,
+    "date_ok": true
+   },
+   "llm_only_gemini": {
+    "answer": "No, it has not expired. It is valid until June 2028.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 6.123,
+    "total_s": 6.126,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": false,
+    "correct": true,
+    "date_ok": true
+   },
+   "llm_only_qwen3b": {
+    "answer": "The text doesn't show an expiry date.",
+    "route": "question",
+    "not_in_text": true,
+    "first_s": 0.515,
+    "total_s": 0.515,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": null,
+    "correct": false,
+    "date_ok": null
+   }
+  },
+  {
+   "id": "e12",
+   "text": "Antiseptic liquid 500 ml\nMfg. 03/2023\nExp. 02/2026",
+   "expired": true,
+   "relative": false,
+   "code": {
+    "verdict": true,
+    "found": "Exp. 02/2026 -> valid until 2026-02-28",
+    "correct": true
+   },
+   "app_gemini": {
+    "answer": "Yes, this product has expired. It was valid until the end of February 2026.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 9.763,
+    "total_s": 9.763,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": true,
+    "correct": true,
+    "date_ok": true
+   },
+   "app_qwen3b": {
+    "answer": "It has expired. It was valid until February 28, 2026.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 0.486,
+    "total_s": 0.773,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": true,
+    "correct": true,
+    "date_ok": true
+   },
+   "llm_only_gemini": {
+    "answer": "Yes, this product has expired. It was valid until February 2026.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 25.597,
+    "total_s": 25.602,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": true,
+    "correct": true,
+    "date_ok": true
+   },
+   "llm_only_qwen3b": {
+    "answer": "The text doesn't show an expiry date, only a manufacturing date of March 2023 and an expiration date of February 2026. It is valid until February 2026.",
+    "route": "question",
+    "not_in_text": true,
+    "first_s": 0.917,
+    "total_s": 1.107,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": false,
+    "correct": false,
+    "date_ok": true
+   }
+  },
+  {
+   "id": "e13",
+   "text": "Digestive biscuits 200 g\nPacked on: 15/04/2026\nBest before: 14/10/2026",
+   "expired": true,
+   "relative": false,
+   "code": {
+    "verdict": true,
+    "found": "Best before: 14/10/2026 -> valid until 2026-10-14",
+    "correct": true
+   },
+   "app_gemini": {
+    "answer": "Yes, these biscuits have expired. They were best before October 14, 2026.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 7.596,
+    "total_s": 7.596,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": true,
+    "correct": true,
+    "date_ok": true
+   },
+   "app_qwen3b": {
+    "answer": "It has expired. Valid until 14 October 2026, and it is after that date.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 0.49,
+    "total_s": 0.821,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": true,
+    "correct": true,
+    "date_ok": true
+   },
+   "llm_only_gemini": {
+    "answer": "Yes, these biscuits have expired. They were best before October 14, 2026.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 3.777,
+    "total_s": 3.796,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": true,
+    "correct": true,
+    "date_ok": true
+   },
+   "llm_only_qwen3b": {
+    "answer": "The text doesn't show an expiry date, only a best before date of 14/10/2026. Today is 19 October 2026, so it has not expired yet.",
+    "route": "question",
+    "not_in_text": true,
+    "first_s": 0.822,
+    "total_s": 1.177,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": false,
+    "correct": false,
+    "date_ok": true
+   }
+  },
+  {
+   "id": "e14",
+   "text": "Instant noodles 70 g\nPKD: 02.06.2026\nUse by: 02.12.2026",
+   "expired": false,
+   "relative": false,
+   "code": {
+    "verdict": false,
+    "found": "Use by: 02.12.2026 -> valid until 2026-12-02",
+    "correct": true
+   },
+   "app_gemini": {
+    "answer": "No, it has not expired. It is good to use until December 2, 2026.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 24.45,
+    "total_s": 24.457,
+    "retries": 1,
+    "service_error": false,
+    "says_expired": false,
+    "correct": true,
+    "date_ok": true
+   },
+   "app_qwen3b": {
+    "answer": "It has not expired; it is still valid until December 2nd, 2026.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 0.806,
+    "total_s": 0.806,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": false,
+    "correct": true,
+    "date_ok": true
+   },
+   "llm_only_gemini": {
+    "answer": "No, it has not expired. It is safe to use until December 2, 2026.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 3.738,
+    "total_s": 3.758,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": false,
+    "correct": true,
+    "date_ok": true
+   },
+   "llm_only_qwen3b": {
+    "answer": "The text doesn't show an expiry date, only a use by date of 02.12.2026 which is before today's date 19 October 2026.",
+    "route": "question",
+    "not_in_text": true,
+    "first_s": 1.066,
+    "total_s": 1.067,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": null,
+    "correct": false,
+    "date_ok": true
+   }
+  },
+  {
+   "id": "e15",
+   "text": "Fruit juice 1 L\nMfd: 20/07/2026\nBest Before 18/10/2026",
+   "expired": true,
+   "relative": false,
+   "code": {
+    "verdict": true,
+    "found": "Best Before 18/10/2026 -> valid until 2026-10-18",
+    "correct": true
+   },
+   "app_gemini": {
+    "answer": "Yes, this product has expired. It was valid until October 18, 2026.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 2.8,
+    "total_s": 2.835,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": true,
+    "correct": true,
+    "date_ok": true
+   },
+   "app_qwen3b": {
+    "answer": "It has expired. Valid until 18 October 2026, and it is after that date.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 0.515,
+    "total_s": 0.847,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": true,
+    "correct": true,
+    "date_ok": true
+   },
+   "llm_only_gemini": {
+    "answer": "Yes, this product has expired. It was best before yesterday, October 18, 2026.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 1.122,
+    "total_s": 1.186,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": true,
+    "correct": true,
+    "date_ok": true
+   },
+   "llm_only_qwen3b": {
+    "answer": "The text doesn't show an expiry date, only a best before date of 18/10/2026. Today's date is 19 October 2026, so the product has not expired yet.",
+    "route": "question",
+    "not_in_text": true,
+    "first_s": 1.769,
+    "total_s": 2.148,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": false,
+    "correct": false,
+    "date_ok": true
+   }
+  },
+  {
+   "id": "e16",
+   "text": "Milk powder 400 g\nMFG: 05/2026\nBEST BEFORE: 11/2027",
+   "expired": false,
+   "relative": false,
+   "code": {
+    "verdict": false,
+    "found": "BEST BEFORE: 11/2027 -> valid until 2027-11-30",
+    "correct": true
+   },
+   "app_gemini": {
+    "answer": "It has not expired. It is good to use until the end of November 2027.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 5.16,
+    "total_s": 5.173,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": false,
+    "correct": true,
+    "date_ok": true
+   },
+   "app_qwen3b": {
+    "answer": "It has NOT expired; it is still good until November 30, 2027.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 0.808,
+    "total_s": 0.808,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": false,
+    "correct": true,
+    "date_ok": true
+   },
+   "llm_only_gemini": {
+    "answer": "No, it has not expired. It is best before November 2027.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 22.702,
+    "total_s": 22.708,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": false,
+    "correct": true,
+    "date_ok": true
+   },
+   "llm_only_qwen3b": {
+    "answer": "The text doesn't show an expiry date.",
+    "route": "question",
+    "not_in_text": true,
+    "first_s": 0.501,
+    "total_s": 0.501,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": null,
+    "correct": false,
+    "date_ok": null
+   }
+  },
+  {
+   "id": "e17",
+   "text": "Eye drops 10 ml\nMfg.: SEP.2024\nExp.: SEP.2026\nUse within one month of opening",
+   "expired": true,
+   "relative": false,
+   "code": {
+    "verdict": true,
+    "found": "Exp.: SEP.2026 -> valid until 2026-09-30",
+    "correct": true
+   },
+   "app_gemini": {
+    "answer": "Yes, this product has expired. It was valid until the end of September 2026.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 14.872,
+    "total_s": 14.895,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": true,
+    "correct": true,
+    "date_ok": true
+   },
+   "app_qwen3b": {
+    "answer": "It has expired. Valid until September 30, 2026, and it is now after that date.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 0.471,
+    "total_s": 0.836,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": true,
+    "correct": true,
+    "date_ok": true
+   },
+   "llm_only_gemini": {
+    "answer": "Yes, this product has expired. It was valid until September 2026.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 12.371,
+    "total_s": 12.375,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": true,
+    "correct": true,
+    "date_ok": true
+   },
+   "llm_only_qwen3b": {
+    "answer": "The text doesn't show an expiry date, only a manufacturing date.",
+    "route": "question",
+    "not_in_text": true,
+    "first_s": 0.586,
+    "total_s": 0.586,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": null,
+    "correct": false,
+    "date_ok": null
+   }
+  },
+  {
+   "id": "e18",
+   "text": "Antacid gel 170 ml\nMFG.DATE 03/2025\nEXP.DATE 03/2027",
+   "expired": false,
+   "relative": false,
+   "code": {
+    "verdict": false,
+    "found": "EXP.DATE 03/2027 -> valid until 2027-03-31",
+    "correct": true
+   },
+   "app_gemini": {
+    "answer": "No, it has not expired. It is good to use until the end of March 2027.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 13.537,
+    "total_s": 13.596,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": false,
+    "correct": true,
+    "date_ok": true
+   },
+   "app_qwen3b": {
+    "answer": "It has not expired; it is still valid until March 31, 2027.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 0.803,
+    "total_s": 0.803,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": false,
+    "correct": true,
+    "date_ok": true
+   },
+   "llm_only_gemini": {
+    "answer": "No, it has not expired. It is valid until March 2027.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 4.281,
+    "total_s": 4.283,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": false,
+    "correct": true,
+    "date_ok": true
+   },
+   "llm_only_qwen3b": {
+    "answer": "The text doesn't show an expiry date.",
+    "route": "question",
+    "not_in_text": true,
+    "first_s": 0.676,
+    "total_s": 0.676,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": null,
+    "correct": false,
+    "date_ok": null
+   }
+  },
+  {
+   "id": "e19",
+   "text": "Hand sanitiser 100 ml\nMfg: AUG 2024\nExpiry: AUG 2026",
+   "expired": true,
+   "relative": false,
+   "code": {
+    "verdict": true,
+    "found": "Expiry: AUG 2026 -> valid until 2026-08-31",
+    "correct": true
+   },
+   "app_gemini": {
+    "answer": "Yes, this hand sanitiser has expired. It was valid until the end of August 2026.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 2.123,
+    "total_s": 2.147,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": true,
+    "correct": true,
+    "date_ok": true
+   },
+   "app_qwen3b": {
+    "answer": "It has expired. It was valid until August 31, 2026.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 0.473,
+    "total_s": 0.732,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": true,
+    "correct": true,
+    "date_ok": true
+   },
+   "llm_only_gemini": {
+    "answer": "Yes, this product has expired. It was valid until August 2026.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 0.882,
+    "total_s": 0.889,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": true,
+    "correct": true,
+    "date_ok": true
+   },
+   "llm_only_qwen3b": {
+    "answer": "The text doesn't show an expiry date, only a manufacturing date.",
+    "route": "question",
+    "not_in_text": true,
+    "first_s": 0.584,
+    "total_s": 0.584,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": null,
+    "correct": false,
+    "date_ok": null
+   }
+  },
+  {
+   "id": "e20",
+   "text": "Calcium tablets\nMfg. Dt. 02/2026\nExp Dt. 01/2028",
+   "expired": false,
+   "relative": false,
+   "code": {
+    "verdict": false,
+    "found": "Exp Dt. 01/2028 -> valid until 2028-01-31",
+    "correct": true
+   },
+   "app_gemini": {
+    "answer": "No, it has not expired. It is valid until January 31, 2028.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 1.511,
+    "total_s": 1.524,
+    "retries": 1,
+    "service_error": false,
+    "says_expired": false,
+    "correct": true,
+    "date_ok": true
+   },
+   "app_qwen3b": {
+    "answer": "It has not expired; it is still valid until January 31, 2028.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 0.804,
+    "total_s": 0.804,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": false,
+    "correct": true,
+    "date_ok": true
+   },
+   "llm_only_gemini": {
+    "answer": "No, it has not expired. It is valid until January 2028.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 10.354,
+    "total_s": 10.36,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": false,
+    "correct": true,
+    "date_ok": true
+   },
+   "llm_only_qwen3b": {
+    "answer": "The text doesn't show an expiry date, only a manufacturing date and a date until which it is valid. Today's date is 19 October 2026, so the tablets are not yet past their expiry date.",
+    "route": "question",
+    "not_in_text": true,
+    "first_s": 0.72,
+    "total_s": 1.147,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": null,
+    "correct": false,
+    "date_ok": false
+   }
+  },
+  {
+   "id": "e21",
+   "text": "Throat lozenges\nMFG.: NOV.2023\nEXP.: OCT.2025",
+   "expired": true,
+   "relative": false,
+   "code": {
+    "verdict": true,
+    "found": "EXP.: OCT.2025 -> valid until 2025-10-31",
+    "correct": true
+   },
+   "app_gemini": {
+    "answer": "Yes, these throat lozenges have expired. They were valid until the end of October 2025.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 13.043,
+    "total_s": 13.095,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": true,
+    "correct": true,
+    "date_ok": true
+   },
+   "app_qwen3b": {
+    "answer": "It has expired. Valid until October 31, 2025, it has expired as of today, October 19, 2026.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 0.475,
+    "total_s": 1.011,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": true,
+    "correct": true,
+    "date_ok": true
+   },
+   "llm_only_gemini": {
+    "answer": "Yes, this product has expired. It was valid until October 2025.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 3.44,
+    "total_s": 3.443,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": true,
+    "correct": true,
+    "date_ok": true
+   },
+   "llm_only_qwen3b": {
+    "answer": "The text doesn't show an expiry date, only a manufacturing date. It does not expire as per the given information.",
+    "route": "question",
+    "not_in_text": true,
+    "first_s": 0.591,
+    "total_s": 0.761,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": null,
+    "correct": false,
+    "date_ok": null
+   }
+  },
+  {
+   "id": "e22",
+   "text": "Pain relief gel 30 g\nMfg. 06/2025\nExp. 31/10/2026",
+   "expired": false,
+   "relative": false,
+   "code": {
+    "verdict": false,
+    "found": "Exp. 31/10/2026 -> valid until 2026-10-31",
+    "correct": true
+   },
+   "app_gemini": {
+    "answer": "No, it has not expired. It is valid until October 31, 2026.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 6.208,
+    "total_s": 6.21,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": false,
+    "correct": true,
+    "date_ok": true
+   },
+   "app_qwen3b": {
+    "answer": "It has not expired; it is valid until 31 October 2026.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 0.768,
+    "total_s": 0.768,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": false,
+    "correct": true,
+    "date_ok": true
+   },
+   "llm_only_gemini": {
+    "answer": "No, it has not expired yet. It is valid until October 31, 2026.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 7.238,
+    "total_s": 7.265,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": false,
+    "correct": true,
+    "date_ok": true
+   },
+   "llm_only_qwen3b": {
+    "answer": "The text doesn't show an expiry date, only a manufacturing date of June 2025. It's valid until October 31, 2026.",
+    "route": "question",
+    "not_in_text": true,
+    "first_s": 0.701,
+    "total_s": 0.957,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": false,
+    "correct": true,
+    "date_ok": true
+   }
+  },
+  {
+   "id": "r01",
+   "text": "Peanut butter 340 g\nMfd: 03/2026\nBest before 6 months from manufacture",
+   "expired": true,
+   "relative": true,
+   "code": {
+    "verdict": null,
+    "found": null,
+    "correct": true
+   },
+   "app_gemini": {
+    "answer": "The text does not show an expiry date, so I cannot tell if it has expired.",
+    "route": "question",
+    "not_in_text": true,
+    "first_s": 3.431,
+    "total_s": 3.431,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": null,
+    "correct": true,
+    "date_ok": null
+   },
+   "app_qwen3b": {
+    "answer": "The text does not show an expiry date, so it has not expired.",
+    "route": "question",
+    "not_in_text": true,
+    "first_s": 0.518,
+    "total_s": 0.518,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": false,
+    "correct": false,
+    "date_ok": null
+   },
+   "llm_only_gemini": {
+    "answer": "The peanut butter has not expired. It is valid until September 2026.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 4.354,
+    "total_s": 4.36,
+    "retries": 1,
+    "service_error": false,
+    "says_expired": false,
+    "correct": false,
+    "date_ok": null
+   },
+   "llm_only_qwen3b": {
+    "answer": "The text doesn't show an expiry date.",
+    "route": "question",
+    "not_in_text": true,
+    "first_s": 0.496,
+    "total_s": 0.496,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": null,
+    "correct": true,
+    "date_ok": null
+   }
+  },
+  {
+   "id": "r02",
+   "text": "Tomato ketchup 500 g\nPKD: 05/2026\nBest before twelve months from packing",
+   "expired": false,
+   "relative": true,
+   "code": {
+    "verdict": null,
+    "found": null,
+    "correct": true
+   },
+   "app_gemini": {
+    "answer": "The text does not show an expiry date, so I cannot tell if it has expired. It only states that it is best before twelve months from the packing date of May 2026.",
+    "route": "question",
+    "not_in_text": true,
+    "first_s": 4.722,
+    "total_s": 4.767,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": null,
+    "correct": true,
+    "date_ok": null
+   },
+   "app_qwen3b": {
+    "answer": "The ketchup has not expired; its best before date is twelve months from packing.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 0.605,
+    "total_s": 0.605,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": false,
+    "correct": true,
+    "date_ok": null
+   },
+   "llm_only_gemini": {
+    "answer": "The ketchup has not expired. It is valid until May 2027.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 29.026,
+    "total_s": 29.029,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": false,
+    "correct": true,
+    "date_ok": null
+   },
+   "llm_only_qwen3b": {
+    "answer": "The text doesn't show an expiry date.",
+    "route": "question",
+    "not_in_text": true,
+    "first_s": 0.503,
+    "total_s": 0.503,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": null,
+    "correct": true,
+    "date_ok": null
+   }
+  }
+ ]
+}

@@ -43,7 +43,7 @@ Helping Eyes addresses these gaps with an affordable reading assistant that runs
 Core capabilities:
 
 - **Live text detection** on any object (pages, books, medicine packs, labels, signs and screens) from the camera preview.
-- **Spoken guidance** ("Move closer", "Move left", "Glare on the right, tilt the page") until the text is in view, followed by automatic capture. "Move closer" is said only when the text is small, the reader is not sure of it (mean confidence below 0.8) **and** the sheet does not already fill the picture: `page_fill()` (in `vision.py`) measures roughly how much of the frame the bright sheet covers (a page, an open book or a lit tablet screen; Otsu threshold on a small copy, about 1 ms), and at 75 % or more that is close enough, so no hint is given. Small text that is read well, or a sheet that fills the picture, is captured without that hint. A round **shutter button** on the camera picture (and the **Capture now** button, key `C`) takes the photo immediately, whatever the guidance says, and uses it.
+- **Spoken guidance** ("Move closer", "Move left", "Glare on the right, tilt the page") until the text is in view, followed by automatic capture. "Move closer" is said only when the text is small, the reader is not sure of it (mean confidence below 0.8) **and** the item does not already fill the picture: `page_fill()` (in `vision.py`) measures how much of the frame the item that carries the text covers (a page, an open book, a pack or a lit tablet screen; the item is grown from its own text lines with GrabCut on a 320 px copy, about 0.1 to 0.25 s, and only worked out when the two cheaper tests would already say "Move closer"), and at 75 % or more that is close enough, so no hint is given. Small text that is read well, or a sheet that fills the picture, is captured without that hint. A round **shutter button** on the camera picture (and the **Capture now** button, key `C`) takes the photo immediately, whatever the guidance says, and uses it.
 - **Spoken or typed requests** about the captured text:
   - *"Read everything"* reads the full captured text exactly as recognised.
   - *"Read only the dosage"* reads just the requested part.
@@ -71,7 +71,7 @@ Text recognition (Apple Vision) and layout analysis run on the server, which is 
 
 ## System Architecture
 
-<img src="docs/architecture.png" width="900" alt="Life cycle of a request: camera pictures go through the coach (vision.py), the photo fixer and the text reader into saved text; voice or typing goes through speech to text and the command check to the language model; everything ends as speech and on-screen output">
+<img src="architecture.png" width="900" alt="Life cycle of a request: camera pictures go through the coach (vision.py), the photo fixer and the text reader into saved text; voice or typing goes through speech to text and the command check to the language model; everything ends as speech and on-screen output">
 
 The picture shows the life cycle of one request, from input to output. The diagram below shows the parts it passes through and how they connect.
 
@@ -79,7 +79,7 @@ The picture shows the life cycle of one request, from input to output. The diagr
 flowchart TB
     subgraph BR["Browser (web/app.js): camera, microphone, speaker, overlay"]
         CAM[Camera or uploaded photo]
-        MODEL[Model menu<br/>Gemini or Qwen 3B]
+        MODEL[Answers from menu<br/>Gemini or Qwen 3B]
         MIC[Voice or typed request]
         OUT[Speech out and overlay<br/>guide box, page layout, highlighted word]
     end
@@ -153,7 +153,7 @@ flowchart TB
 | Capture | OCR engine, accurate mode | Recognises all text once and stores it; nothing is read aloud yet |
 | Voice input | Browser `SpeechRecognition` | Converts spoken requests to text, hands-free; the page also accepts typed requests |
 | Request routing | `commands.py` | Decides whether a request is a command (stop, next, book mode, yes / no, search) or a question; the browser has no command logic of its own. Clear wordings are matched directly; unclear ones that mention the web, searching or looking up (or that answer the "look it up online?" offer) are read by the chosen language model, so any wording that means "look it up" works |
-| Understanding | Language model API (Gemini Flash-Lite by default, or Qwen 2.5 3B on this Mac through Ollama, chosen in the page's Model menu; `assistant.py`) | Reads requested parts or answers questions using only the captured text |
+| Understanding | Language model API (Gemini Flash-Lite by default, or Qwen 2.5 3B on this Mac through Ollama, chosen in the page's **Answers from** menu; `assistant.py`) | Reads requested parts or answers questions using only the captured text |
 | Expiry checks | `assistant.py` | Expiry dates are compared with the current date in code, not by the model |
 | Web lookup | DuckDuckGo (`ddgs`) and the language model | Used only with the user's consent; answers are prefixed with "According to the web" |
 | Image quality | OpenCV layer (`vision.py`, part B) | Blur, glare and exposure scoring with spoken coaching; item outline grown from its own text (GrabCut, so a pack lighter or darker than the table is found alike) and homography flattening; curved-line dewarping; shadow removal and CLAHE when quality is low |
@@ -172,7 +172,7 @@ Helping_Eyes-main/
 │   ├── commands.py         # What a spoken or typed request means, and the spoken voice (local Kokoro, Edge as backup)
 │   ├── assistant.py        # Question answering through a language model API, expiry checks, web lookup, book paragraphs
 │   ├── voice_models/       # The Kokoro voice model files (python run.py --get-voice downloads them; not in git)
-│   ├── web/                # The page: index.html (with the round shutter button on the camera picture), app.js (camera, uploads, speech, overlay), style.css (fits a laptop screen with no scrolling)
+│   ├── web/                # The page: index.html (with the round shutter button on the camera picture), app.js (camera, uploads, speech, overlay), style.css (light and dark themes with measured contrast, thick focus ring, reduced-motion / more-contrast / forced-colors support; fits a laptop screen with no scrolling)
 │   ├── tests/              # one test file per part of vision.py (ocr, quality, book, live), plus commands, llm, server, run and web_mic
 │   └── .env                # Your settings: the key and optional choices (git-ignored, never committed)
 ├── markdown/               # Every guide other than this README:
@@ -182,14 +182,17 @@ Helping_Eyes-main/
 │   ├── computer_vision.md  #   every computer vision idea of the project (pixels, maths, each step) in simple words
 │   ├── eval_plan.md        #   the real-world evaluation plan (OCR, answers, speed)
 │   ├── eval_shotlist.md    #   which photos to take for the evaluation, and how to import them
+│   ├── eval_results.md     #   every evaluation result against the requirement targets (generated by eval/make_results.py)
 │   ├── eval_photo_summary.md  # results of the photo evaluation (numbers only; generated)
-│   └── eval_photo_report.md   # every photo with its boxes, OCR text and all answers (generated; not in git)
-├── eval/                   # The evaluation: tools/ (photo intake, folder import, photo checks), run_photo_eval.py (OCR engines, image checks drawn as boxes, every question to the local model) photo_report.py (scores and report) and make_check_folders.py (one folder of photos per image check: blur, glare, dark, slant, outline); data/private/ is not in git
-├── docs/                   # Diagrams and screenshots used in the docs (make_architecture.py redraws the architecture diagram)
+│   ├── eval_photo_report.md   # every photo with its boxes, OCR text and all answers (generated; not in git)
+│   ├── user_study.md       #   how to run the user study, and where its results go
+│   └── resume_bullets.md   #   resume bullets, using only numbers from eval_results.md
+├── eval/                   # The evaluation: tools/ (photo intake, folder import, photo checks), run_photo_eval.py (OCR engines, image checks drawn as boxes, every question to the local model), photo_report.py (scores and report), make_check_folders.py (one folder of photos per image check), run_qa.py (Gemini vs Qwen, web lookup safety, blind judging sample), run_expiry.py (expiry verdicts, with the model-alone ablation), run_latency.py (speed of the real server), run_book.py (book photos and a page-turn video), make_results.py (writes markdown/eval_results.md), common.py (shared helpers, fixed evaluation date), test_scoring.py (checks of the scoring rules); results/ holds the numbers; data/private/ (photos and their text) is not in git
 ├── presentation/           # Slides, narrated video, script and the course requirements document
 ├── .github/workflows/      # check.yml: runs the tests on every push
 ├── run.py                  # Runs the whole app on this computer: checks, starts the server, opens Chrome
 ├── requirements.txt        # The only requirements file: every dependency (app, tests and evaluation)
+├── architecture.png        # The life-cycle diagram shown under System Architecture
 └── README.md
 ```
 
@@ -199,7 +202,7 @@ Helping_Eyes-main/
 | `vision.py` | **Part A, reading text (OCR):** `find_text_region()` for live detection · `recognize_text()` for full recognition, including per-word boxes · `read_text_enhanced()` tries corrected versions of a poor frame and keeps the best read · **Part B, image quality and page geometry:** `assess_quality()` (variance of the Laplacian, saturated glare blobs, exposure) · `find_page_quad()` and `warp_page()` (the item outline: grown from the text lines with GrabCut by `find_item_quad()`, or for a book page not yet read the bright paper region; `approxPolyDP`, homography) · `page_fill()` (how much of the picture the item fills, from the same item mask) · `estimate_dewarp()` and `dewarp()` (per-column vertical shift model for curved lines) · `enhance_tone()` (shadow removal, CLAHE) · `binarize()`. Set `VISION_ENHANCE=0` to disable; `BLUR_MIN` tunes the blur threshold · **Part C, book mode:** `PageTurnDetector` (frame differencing state machine) · `estimate_skew()` and `rotate_expand()` (a slanted page is straightened before the layout analysis; every line, word, paragraph and column keeps an outline that follows the slant, so the boxes on screen lie along the text) · `split_spread()` (spine detection) · `split_page_parts()` and `parse_page_number()` (header, footer, printed page number, running title) · `xy_cut()` (reading order) · `read_page()` · `arrange_page()`, `regroup()`, `line_hints()` (the model's paragraphs, built on the original lines) · `continue_from()` (compares a moved view with the page being read) · **Part D, live guidance:** `LiveGuide` (guidance hints, hold-still timing, quality coaching, capture trigger and re-arming) · `BookWatcher` (page turns on the live frames) · `BookReader` (new page, resume from the word reached, keep reading, nothing new) · `speech_chunks()` (page split into paragraphs for tracked speech) |
 | `commands.py` | `classify()` (with an optional language-model `judge` for unclear wording) turns a request into stop, repeat, new capture, book mode on / off, yes / no (only while an offer is open), search, read everything or a question · the voice: `synthesize()` turns one sentence into MP3 with the local Kokoro voice (`kokoro-onnx`), or the free Edge neural voice (`edge-tts`) if Kokoro is not set up or fails, `spoken_form()` spells out numbers above 9999 digit by digit, and a small cache avoids repeating work |
 | `assistant.py` | `DocAssistant.set_document()` and `ask()` stream answers sentence by sentence from any OpenAI-compatible chat API (`set_provider()` picks Gemini or the local Qwen 3B per request) · `judge_intent()` reads unclear yes / no / search wording · `ask_web()` searches and answers from the results · `wants_read_all()` detects full read-out requests · `expiry_checks()` determines whether expiry dates have passed · `web_lookup_allowed()` excludes item-specific questions such as expiry, batch and price |
-| `web/app.js` | Camera and frame streaming · overlay (guide box, page layout, reading highlight) · speech output (plays the server's audio, prefetches the next sentences, estimates the spoken word for the highlight, falls back to the browser voice sentence by sentence; a sound that stops moving is nudged twice, then the browser voice says the rest of that piece from where it stopped, so nothing is skipped; every timer belongs to its sentence and is cleared when speech stops; on a phone the sound is unlocked at the first real tap, and a sentence the phone blocks waits for the next tap without freezing the camera guidance or the microphone (the start-up greeting is simply dropped); console lines `Voice: N characters ready in X ms`, `Server voice failed` and `Voice stalled at …` show where a pause comes from) · asks for the camera and the microphone in ONE request as soon as the page opens (one permission question; the microphone is released at once, and without a microphone the camera alone starts) · hands-free speech input with an echo guard, phone-safe results (a result that repeats the phrase so far replaces the previous one) and a 0.5 s pause before reopening the microphone on a phone, live "Hearing: ..." text and spoken explanations when the microphone or the speech service fails · uploaded photos (shown in place of the camera with the same overlay, glare marker and book-mode reading highlight; New item returns to the camera) · the Model menu · keyboard shortcuts. It holds no decision logic |
+| `web/app.js` | Camera and frame streaming · overlay (guide box, page layout, reading highlight) · speech output (plays the server's audio, prefetches the next sentences, estimates the spoken word for the highlight, falls back to the browser voice sentence by sentence; a sound that stops moving is nudged twice, then the browser voice says the rest of that piece from where it stopped, so nothing is skipped; every timer belongs to its sentence and is cleared when speech stops; on a phone the sound is unlocked at the first real tap, and a sentence the phone blocks waits for the next tap without freezing the camera guidance or the microphone (the start-up greeting is simply dropped); console lines `Voice: N characters ready in X ms`, `Server voice failed` and `Voice stalled at …` show where a pause comes from) · asks for the camera and the microphone in ONE request as soon as the page opens (one permission question; the microphone is released at once, and without a microphone the camera alone starts) · hands-free speech input with an echo guard, phone-safe results (a result that repeats the phrase so far replaces the previous one) and a 0.5 s pause before reopening the microphone on a phone, the words heard so far shown as "You said: ..." and spoken explanations when the microphone or the speech service fails · Settings (the screen reader reads everything instead of the app voice, through one live region; single-key shortcuts on / off) · the spoken word highlighted with the CSS Custom Highlight API, so the text is never rewritten · problems said aloud (camera blocked, server unreachable, live connection lost and back) · uploaded photos (shown in place of the camera with the same overlay, glare marker and book-mode reading highlight; New item returns to the camera) · the Answers from menu · keyboard shortcuts (never while typing or choosing in the menu). It holds no decision logic |
 
 ---
 
@@ -243,7 +246,7 @@ LLM_API_KEY=<YOUR_KEY>
 # LLM_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai
 ```
 
-The **Model** menu on the page chooses who answers: Gemini (online, the settings above) or Qwen 2.5 3B running on this Mac through [Ollama](https://ollama.com) (`python run.py` starts Ollama for you if it is installed and not already running (stopping it at the end only if it started it), and loads the Qwen model into memory in the background so the first answer is not slow (it tells you if the model still has to be downloaded with `ollama pull`); `--no-ollama` skips this; no key needed). Qwen settings: `QWEN_3B_MODEL` (default `qwen2.5:3b-instruct`, as listed by `ollama list`) and `QWEN_BASE_URL` (default `http://localhost:11434/v1`). The choice is sent with every request and remembered by the browser. To use another provider, change `LLM_BASE_URL`, `LLM_MODEL` and `LLM_API_KEY` (for example Groq or OpenRouter, both of which have free tiers); no code changes are needed. Optional image settings: `VISION_ENHANCE=0` (turn off the image-correction layer) and `BLUR_MIN`. The camera is chosen in the browser. Optional voice settings: `TTS_VOICE` (default `en-US-JennyNeural`, female), `TTS_RATE` (speed, e.g. `+10%`) and `TTS_ENABLED=0` (always use the browser voice).
+The **Answers from** menu on the page chooses who answers: *Online AI (Gemini)*, the settings above, or *Offline AI on this computer (Qwen)*, Qwen 2.5 3B running on this Mac through [Ollama](https://ollama.com) (`python run.py` starts Ollama for you if it is installed and not already running (stopping it at the end only if it started it), and loads the Qwen model into memory in the background so the first answer is not slow (it tells you if the model still has to be downloaded with `ollama pull`); `--no-ollama` skips this; no key needed). Qwen settings: `QWEN_3B_MODEL` (default `qwen2.5:3b-instruct`, as listed by `ollama list`) and `QWEN_BASE_URL` (default `http://localhost:11434/v1`). The choice is sent with every request and remembered by the browser. To use another provider, change `LLM_BASE_URL`, `LLM_MODEL` and `LLM_API_KEY` (for example Groq or OpenRouter, both of which have free tiers); no code changes are needed. Optional image settings: `VISION_ENHANCE=0` (turn off the image-correction layer) and `BLUR_MIN`. The camera is chosen in the browser. Optional voice settings: `TTS_VOICE` (default `en-US-JennyNeural`, female), `TTS_RATE` (speed, e.g. `+10%`) and `TTS_ENABLED=0` (always use the browser voice).
 
 ---
 
@@ -279,7 +282,7 @@ python run.py                  # checks your setup, starts the app and opens it 
 `run.py` is the start button for the app on this Mac: it checks the Python version and the installed packages, tells you if the language-model key is missing, starts the same server, waits until the text reader has loaded and opens the page. Chrome (or Edge) does the camera, the microphone, speech to text and text to speech, exactly as for a visitor on the host. Options: `--no-browser` (print the address only), `--port 8000` (default 7860; the next free port is used if it is taken) and `--host 0.0.0.0` (also reachable from other devices on your network) and `--share` (see below). `python run.py --get-voice` downloads the local voice once (about 350 MB) and stops; the start-up message has a `voice` line that says which voice will speak. Stop it with Ctrl+C. To start the server without `run.py`: `cd helping_eyes && uvicorn server:app --port 7860`.
 
 1. Allow the camera and the microphone: the browser asks for both as soon as the page opens, in one question (the microphone only needs the permission; listening stays off until you press **Listen**). Hold the item in front of the camera and follow the spoken guidance; it is captured automatically once it is steady and in view.
-2. After *"Got it"*, ask aloud (press **Listen** once for hands-free listening; the words appear as "Hearing: ..." while you speak) or type the question and press Enter.
+2. After *"Got it"*, ask aloud (press **Listen** once for hands-free listening; the words appear as "You said: ..." while you speak) or type the question and press Enter.
 3. When you press **Capture now** (or the round shutter button, or `C`) the photo taken stays on the screen, with the detected text outlined, and the camera is switched off, until you press **New item** (`R`) or say *"next"*. (If no text is found in the photo, the camera comes straight back so you can try again. In book mode the camera stays on, because pages are turned hands-free.) To capture another item, press **New item**, say *"next"*, or move the current one out of view briefly when the camera is on.
 4. For a book, press **Book mode** (or say *"book mode"*), hold the book open and turn the pages.
 
@@ -292,7 +295,7 @@ brew install cloudflared       # once
 python run.py --share          # prints a public https address
 ```
 
-`--share` opens a free Cloudflare Quick Tunnel to the server on your laptop, so a phone or a friend can open the app over `https` (the camera and microphone need it). On a Mac it also runs `caffeinate` so the laptop does not fall asleep from being idle. The address works only while the laptop is awake and `run.py` is running, and it changes every time. The laptop's own memory covers the roughly 1 GB the OCR needs. Closing the lid on battery still sleeps the Mac. Anyone with the address uses your language-model key's quota, so share it with people you trust.
+`--share` opens a free tunnel to the server on your laptop (your fixed ngrok address when `NGROK_DOMAIN` is set, see [Hosting](#hosting); otherwise a Cloudflare Quick Tunnel, as here), so a phone or a friend can open the app over `https` (the camera and microphone need it). On a Mac it also runs `caffeinate` so the laptop does not fall asleep from being idle. The address works only while the laptop is awake and `run.py` is running, and it changes every time. The laptop's own memory covers the roughly 1 GB the OCR needs. Closing the lid on battery still sleeps the Mac. Anyone with the address uses your language-model key's quota, so share it with people you trust.
 
 ### Hosting
 
@@ -303,7 +306,24 @@ The Mac is the server (Apple Vision exists only on macOS). `python run.py --shar
 ```bash
 cd helping_eyes
 for t in tests/test_*.py; do python "$t" || break; done
+cd .. && python eval/test_scoring.py     # the evaluation's scoring rules
 ```
+
+### Evaluation
+
+The real-world evaluation lives in `eval/` and writes its results to [markdown/eval_results.md](markdown/eval_results.md). Photos go in `eval/data/private/` (never committed; see [markdown/eval_shotlist.md](markdown/eval_shotlist.md)). From the top folder:
+
+```bash
+.venv/bin/python eval/run_photo_eval.py ocr cv qa score report   # OCR engines, image checks, Qwen on every photo
+.venv/bin/python eval/run_qa.py subset && .venv/bin/python eval/run_qa.py run && .venv/bin/python eval/run_qa.py score
+.venv/bin/python eval/run_qa.py web                               # web lookup safety
+.venv/bin/python eval/run_expiry.py                               # expiry verdicts and the model-alone ablation
+.venv/bin/python eval/run_book.py pages                           # book photos; and: run_book.py video <file> --turns N
+.venv/bin/python eval/run_latency.py                              # speed (run with nothing else busy)
+.venv/bin/python eval/make_results.py                             # writes markdown/eval_results.md
+```
+
+Every script resumes where it stopped, and the Gemini runs retry a busy service and stop by themselves when the free daily limit is used up.
 
 ---
 
@@ -336,9 +356,18 @@ for t in tests/test_*.py; do python "$t" || break; done
 | `A` | Read everything | Read the full captured text |
 | `P` | Repeat | Repeat the last answer |
 | `S` | Stop | Stop speaking |
-| `M` | Listen / Stop listening | Turn hands-free listening on or off. The button shows whether the microphone is open right now: it goes off while the app talks or thinks and turns itself on again when it is quiet. Pressing it while the app talks stops the talking and listens at once |
+| `M` | Listen | Turn hands-free listening on or off (the app says "Listening" / "Listening is off"). The button is filled with a check mark while the microphone is open right now: it goes off while the app talks or thinks and turns itself on again when it is quiet. Pressing it while the app talks stops the talking and listens at once |
 
-On a laptop-sized window (at least 1000 × 560) the whole page fits the screen without scrolling: the camera takes the left half and shrinks to the height that is left, and the answer scrolls inside its own box. Phones keep the normal scrolling page.
+On a laptop-sized window (at least 1000 × 560) the whole page fits the screen without scrolling: the camera takes the left half and shrinks to the height that is left, and the answer scrolls inside its own box. Phones keep the normal scrolling page, and at 200 % browser zoom the page switches to that single column.
+
+**Look and accessibility:** all text, including every button label, is at least 7:1 contrast against its background (the answer is the largest text, 20 to 21 px), and the edges of the question box and menu at least 3:1, in both the light and the dark theme. Buttons are at least 48 px tall on a phone and 44 px on a laptop, and the keyboard focus ring is 3 px with a gap. A toggle that is on (Listen, Book mode) is filled and shows a check mark, so its state is not shown by colour alone. The page follows the system settings for reduced motion (no transitions), more contrast (solid borders), reduced transparency (a solid top bar) and Windows High Contrast. The overlay's labels sit on a dark plate, so they stay readable on any camera picture. Text sizes follow the browser's own text-size setting. The round shutter is a large touch target only: keyboard and screen-reader users meet the same action once, as **Capture now**. The answer box can be reached with Tab and scrolled with the arrow keys. Single-letter shortcuts do not fire while you type in the question box or choose in the menu. When the "look it up online?" offer closes, the keyboard focus moves to the question box. **What can I say?** under the Ask buttons lists the voice commands (hidden on short laptop screens). Every problem (camera blocked, microphone blocked, no text, the server unreachable or the live connection lost and back) is said aloud as well as shown. axe-core reports no issues, including the AAA contrast rule.
+
+**Settings** (top right; remembered by the browser):
+
+- *My screen reader reads everything:* the app's own voice stays quiet and everything it would say (guidance, answers, book pages, problems) is passed to the screen reader or braille display through one live region; the microphone waits until the screen reader has probably finished. Off by default: then the app speaks, and the status line and answer box are not live regions, so a screen reader never repeats what the app has just said.
+- *Single-key shortcuts:* on by default; switching them off (WCAG 2.1.4) stops C, R, B, A, P, S and M and hides their key hints, for screen-reader users whose own quick keys use the same letters.
+
+The word being read is highlighted with the CSS Custom Highlight API, so the answer text itself is never rewritten while it is spoken (a `<mark>` is the fallback in older browsers).
 
 Upload photo shows the picture where the camera preview is (the camera is switched off while the photo is shown; Back to camera, or New item, switches it back on and returns to the live view). In book mode the uploaded page is read like a camera page: the same overlay (spine, columns, paragraph order) is drawn on it and the line and word being spoken are highlighted. In normal mode, tick the box beside it for a two-page spread. The photo's sharpness, light and glare are shown on it as on the live view, as numbers and a hint only, nothing is drawn on the picture (`POST /api/quality`).
 
@@ -352,9 +381,7 @@ The microphone listens only while the application is silent, so that it does not
 
 Book mode reads a book page by page without manual interaction: the user opens the book in front of the camera, listens, and turns the page. The OCR engine recognises the characters of each line; **the decisions of when to read, where each page lies and in what order to read are made by the project's own OpenCV pipeline** in [`vision.py`](helping_eyes/vision.py) (parts C and D).
 
-<img src="docs/book_mode_overlay.jpg" width="720" alt="Book mode overlay on a synthetic two-page spread: spine line in yellow, page numbers and running title outlined in purple, paragraph boxes in green numbered 1 to 6 in reading order">
-
-*Book mode on a synthetic two-page spread: the detected spine (yellow), the printed page numbers and running title (purple, announced but not read in the text flow) and the paragraphs (green), numbered in reading order. The status bar shows the recognised page numbers.*
+On screen, book mode draws the detected spine (yellow), the printed page numbers and running title (purple, announced but not read in the text flow) and the paragraphs (green), numbered in reading order; the status bar shows the recognised page numbers.
 
 ```mermaid
 flowchart LR
@@ -399,9 +426,7 @@ The page structure is derived from the boxes of the lines the OCR recognised, wh
 
 ### 4. Reading position highlight
 
-While a page is read aloud, the display follows the speech word by word: the **line being spoken is highlighted** and the **word being spoken is outlined**.
-
-<img src="docs/book_mode_highlight.jpg" width="720" alt="Book mode reading highlight: the line being spoken highlighted in yellow and the current word outlined in orange">
+While a page is read aloud, the display follows the speech word by word: the **line being spoken is highlighted** (yellow) and the **word being spoken is outlined** (orange).
 
 - **Spoken position:** `app.js` estimates the word being spoken from how far through the audio it is (the server gives no word times; the browser fallback voice reports the word through the `boundary` event of `speechSynthesis`) and converts it to a character position in the page text. The server splits the page into paragraphs (`speech_chunks()` in `vision.py`), and each is spoken separately, so the start-up delay coincides with the natural pause between paragraphs. Voices that send no word events still advance the position paragraph by paragraph.
 - **On-page location:** during recognition, the OCR engine provides a bounding box for every word, and `read_page()` records which characters of the page text belong to which printed line and word (`PageLayout.lines`). The server sends this layout to the page with each new book page.
@@ -433,8 +458,10 @@ If the camera or the book moves, the new view is compared with the page being re
 | Words mapped to their on-screen box (two-page spread) | 169 / 169 |
 | View moved mid-read (camera shifted 320 px; top lines left, new lines entered) | Reading continued from the exact word reached, with no new-page announcement; the newly visible lines were then read |
 | Different page after reading | Detected as a new page and read from the beginning |
+| Real book, 5 phone photos (4 two-page spreads) | Reading order right for 98 % of line pairs; the spine was not found on any spread, so no printed page number was announced (0 / 5). See [Performance](#book-mode-on-a-real-book) |
+| Real page-turn video (30 s, 4 turns) | Every new page read once, plus one early read while the hand was still turning |
 | Processing time | Page-turn detector 0.2 ms per frame; spine and layout analysis 8 ms; full page including recognition and word boxes about 0.4–0.9 s |
-| Automated tests | 157 tests: reading text (10, real Apple Vision on rendered text), image quality and page geometry (12, including the item outline on a strip lighter or darker than the floor and with text in the background), book mode (32: page numbers, header and footer, reading order, spine, page turns, resuming), live guidance and book-page decisions (30, including how much of the picture an item on a light floor fills), commands and the voice (14), language-model client against a fake provider, including expiry dates in common label wordings such as `Exp. Date 02/2027` (16), server endpoints and WebSocket with real OCR (12), `run.py` (14: helpers, the key reaching the server, a real start, port fallback, Ctrl+C stop), the page's listening, start-up and voice in headless Chrome with a fake speech engine (17; skipped without Chrome) |
+| Automated tests | 157 tests: reading text (10, real Apple Vision on rendered text), image quality and page geometry (12, including the item outline on a strip lighter or darker than the floor and with text in the background), book mode (32: page numbers, header and footer, reading order, spine, page turns, resuming), live guidance and book-page decisions (30, including how much of the picture an item on a light floor fills), commands and the voice (14), language-model client against a fake provider, including expiry dates in common label wordings such as `Exp. Date 02/2027` (16), server endpoints and WebSocket with real OCR (12), `run.py` (14: helpers, the key reaching the server, a real start, port fallback, Ctrl+C stop), the page's listening, start-up and voice in headless Chrome with a fake speech engine (17; skipped without Chrome). The evaluation's scoring rules have 17 tests of their own (`eval/test_scoring.py`) |
 | End to end in Chrome, fake camera filming a medicine label | Guidance, automatic capture (0.6 s), "read everything" and the expiry answer worked; in book mode with a looping two-page video, page turns were detected, announced and read (each page request 0.24–0.41 s). The language model itself was tested against a fake provider, not the real Gemini service |
 
 The principal benefits of book mode are hands-free page turning, identification of the printed page number and title on any page, correct handling of two-page spreads and headers, paragraph structure, and the reading position highlight.
@@ -443,40 +470,86 @@ The principal benefits of book mode are hands-free page turning, identification 
 
 ## Performance
 
-Measured on an Apple Silicon laptop running the app locally (measured with the earlier RapidOCR reader on the CPU, before the move to Apple Vision; the model API was not measured because no key was available):
+Everything below was measured on 28 October 2026 with the scripts in `eval/` (see [Evaluation](#evaluation)) on an Apple M3 Pro MacBook (18 GB), answers checked against a fixed date (19 October 2026). The full tables, with 95 % confidence intervals and every target of the course requirements marked met or not met, are in **[markdown/eval_results.md](markdown/eval_results.md)**; this section is a summary of it.
 
-| Operation | Time |
-|---|---|
-| Live frame round trip (browser → server → browser) | about 0.2 s for a label, up to 0.7 s for a dense two-page spread |
-| Capture request, full-size photo of a label | 0.6 s |
-| Book page request (test pages, with word boxes) | 0.24–0.41 s; a dense 1920×1080 spread about 0.9 s |
-| Full read-out request | Immediate (no model involved) |
-| Page-number answers | Immediate (computed in code, no model call). Expiry answers use the model, which words the verdict the code computed |
-| First spoken sentence of an answer | Depends on the provider and its load; not yet measured with Gemini Flash-Lite |
-| Web lookup (search and answer) | Not yet measured (one search and two model calls) |
-| Book mode, page turn to start of reading | About 1.5–2 s (0.8 s settling, 0.4–0.9 s recognition, speech start-up) |
+**How the answers were checked.** The reference for every photo is Claude's own reading of it (the key printed lines, the details such as name, dates, batch and price, and for the non-medicine photos the questions with their expected answers), written before any reader's output was seen. It is one careful reader, not a typed ground truth checked by a second person. Factual answers are scored by fixed rules (tested in `eval/test_scoring.py`); free-text answers by a blind A/B judgement of a random sample.
 
-### Real photos: 148 pharmacy items (22 October 2026)
+### Reading the text: 164 real photos
 
-148 phone photos from a pharmacy (43 tablet strips, 79 cartons, bottles, ampoules and vials, 26 creams, face washes, lotions, soaps and other personal-care items) were run through the app's own code with `eval/run_photo_eval.py`. The reference is Claude's reading of each photo, not a typed and double-checked ground truth. Full numbers: [markdown/eval_photo_summary.md](markdown/eval_photo_summary.md); every photo with its boxes and answers: `markdown/eval_photo_report.md` (kept out of git).
+148 pharmacy photos (79 cartons, bottles and ampoules, 43 tablet strips, 26 personal-care items) and 16 others (6 food labels, 5 book pages, 3 printed documents, 2 laptop screens), taken with a phone in good light, glare and dim light, flat, tilted and curved.
 
 | Text reader | Key-line accuracy | Details found (name, strength, batch, dates, price ...) | Time per photo |
 |---|---|---|---|
-| Apple Vision (the app's reader) | 89.7 % | 69.8 % | 0.17 s |
-| RapidOCR (the earlier reader) | 87.7 % | 68.4 % | 0.62 s |
-| Tesseract | 57.6 % | 24.4 % | 0.32 s |
+| **The app's capture** (Apple Vision on the best of the original and corrected versions) | **90.5 %** | 70.8 % | 0.31 s |
+| Apple Vision alone | 90.2 % | 70.3 % | 0.18 s |
+| RapidOCR (the earlier reader) | 88.4 % | 69.3 % | 0.69 s |
+| Tesseract | 59.2 % | 25.6 % | 0.36 s |
 
-The text the app keeps after a capture (Apple Vision on the best version of the photo) scores 90.1 %. Apple Vision is best on cartons and bottles (96.7 %) and level with RapidOCR on foil strips (about 80 %); on one crumpled foil strip it found no text at all. The local Qwen 2.5 3B model, given the text the app kept, answered 62.8 % of the factual questions correctly (name, strength, quantity, dates, batch, price, maker); most misses come from the layout (values printed a row away from their labels, dates written as `#06/26 @05/29`), not from invented facts.
+Printed documents, screens and book pages are read almost perfectly (96–100 %), cartons at 97 %, food labels at 86 % and crumpled foil strips at about 81 %; curved items (80 %) and the two dim photos (76 %) are the hardest. The requirement's character error rate of at most 0.05 is not met (0.095).
 
-| Image check (`vision.py`, part B) | On these photos |
+### Answers: Gemini Flash-Lite against Qwen 2.5 3B
+
+The same questions about the same 46 photos (30 pharmacy photos chosen at random within each lighting and angle group, plus all 16 others) were asked to both models through the app's own code. Gemini's free daily limit ran out after 20 of the photos, so the comparison below is on those (the rest is run the next day; `eval_results.md` always has the latest numbers).
+
+| | Gemini Flash-Lite | Qwen 2.5 3B (on this Mac) |
+|---|---|---|
+| Factual answers right (name, strength, quantity, dates, batch, price, maker) | **87.2 %** | 64.5 % (all 46 photos) |
+| … when the value was in the text the model got | 90.8 % | 57.4 % |
+| Says "the text doesn't say" when the photo really doesn't (target ≥ 90 %) | 92.7 % | 93.9 % |
+| Says "the text doesn't say" although it does | 6.6 % | 26.0 % |
+| Answers with a number that is not in the text | 1.8 % | 0.6 % |
+| Free-text answers (use, storage, warnings ...), blind sample of 100 | 98 % right, 2 % unsupported | 81 % right, 12 % partial, 7 % wrong |
+| First sentence of the answer, median / 90th percentile | 3.2 s / 16.5 s (busy free tier) | 0.45 s / 1.1 s |
+
+On the questions both answered, Gemini is right 16 points more often (95 % interval 9 to 25 points). Qwen's main weakness is saying a detail is missing when it is printed, often because the value sits a row away from its label. Neither model reached the requirement's 90 % on factual questions; most of the remaining misses come from the reading itself (a value the OCR missed or garbled can only be right if the model repairs it: Gemini 41 %, Qwen 7 %).
+
+### Expiry dates
+
+22 label texts in the date formats found on the real packs (`NOV.26`, `DEC.2026`, `12/2026`, `10/26`, `JUL 28`, `Best before 14/10/2026` ...), half of them expired, including dates one day either side of the evaluation date:
+
+| Who decides "has it expired?" | Right |
 |---|---|
-| Blur (variance of the Laplacian, below 60) | Never: text sharpness 248 to 7934 (median 1966); 21 of 8466 small text patches were blurry |
-| Glare (saturated blobs over 1 % of the picture) | Never flagged. The largest saturated blob was 0.12 %: glare on foil and gloss is bright but not pure white, so the rule misses it |
-| Light and contrast | Never flagged: brightness 96 to 167, contrast 34 to 70 |
-| Slant | Measured on 64 photos (median 3°, up to 26°); only the book path straightens it |
-| Item outline | Found on 134 photos and drawn around the item itself (none on shelves of several products or crumpled strips). The first version took the brightest region as the page, so on a light floor it outlined the floor; it was corrected on 23 October 2026 (below) |
-| How much of the picture the item fills | Median 22 % (3 % to 67 %). The first version also counted the light floor (median 69 %), so on 26 photos the app would wrongly have stopped saying "Move closer" |
-| Version a capture kept | The untouched photo on 134, the flattened item on 14 (now that the outline is right, a tilted item is straightened before reading) |
+| The app's code (`expiry_dates`) | 22 / 22 |
+| The app with Gemini or with Qwen (the code's verdict is given to the model) | 22 / 22 each |
+| Qwen alone, without the app's date check | **5 / 22** |
+| Gemini alone, without the app's date check | 21 / 22 |
+
+This is why the app works dates out in code. Two expired items photographed for real (a 2024 spice packet and a 2025 ice cream) are part of the photo set.
+
+### Web lookup safety
+
+All 8 web answers started with "According to the web", all 3 health answers ended with the pharmacist reminder, and expiry, batch and price questions are never offered a lookup. But read by hand, 4 of the 8 answers were not about the user's item: for a made-up maker name, the model described other companies as if they made it, and once claimed a medicine "contains meat or fish". "When was it manufactured?" is not blocked from a lookup either.
+
+### Speed (the real server over localhost, 20 runs each)
+
+| Operation | Median | 90th percentile |
+|---|---|---|
+| Capture of a label (1920 px photo → text) | 0.29 s | 0.47 s |
+| Live frame round trip (960 px) | 0.11 s | 0.14 s |
+| Question → start of the spoken answer, Qwen (first sentence + its Kokoro audio) | 1.37 s | 1.89 s |
+| Kokoro voice for one sentence | 1.30 s | 1.33 s |
+| Book page with Qwen grouping the paragraphs | 5.8 s | 6.1 s |
+| "Read everything", page-number answers | immediate (no model) | |
+
+The page waits 100 ms after each live reply, so the live check runs about 4.8 times a second (the server alone could take 9.3), below the requirement's 10. Gemini's timings are added to `eval_results.md` with the rest of its run.
+
+### Book mode on a real book
+
+On 5 photos of a real book (4 two-page spreads) the reading order was right for 98 % of line pairs, but **the spine was not found on any spread**, so each spread was read as one wide page and no printed page number was announced (0 / 5; on synthetic spreads 6 / 6). Qwen did not group the paragraphs of these dense pages within the app's 12-second limit, so they were read in layout order. A 30-second video of 4 page turns, fed to the page-turn detector at the browser's frame rate, gave every new page once plus one early read while the hand was still turning the page.
+
+### Image checks on the real photos
+
+| Image check (`vision.py`, part B) | On the 164 photos |
+|---|---|
+| Blur (variance of the Laplacian, below 60) | Never flagged: text sharpness 248 to 7934; 22 of 10087 small text patches were blurry |
+| Glare (saturated blobs over 1 % of the picture) | Never flagged; the largest saturated blob was 0.12 %: glare on foil, gloss and screens is bright but not pure white |
+| Light and contrast | Never flagged: brightness 66 to 167, contrast 35 to 76 |
+| Slant | Measured on 65 photos (median 3°, up to 26°); only the book path straightens it |
+| Item outline | Found on 150 photos (none on shelves of several products or crumpled strips) |
+| How much of the picture the item fills | Median 23 % (3 % to 79 %) |
+| Version a capture kept | The untouched photo on 143, the flattened item on 16 (book pages: the book path on 5) |
+
+The user study of the requirements (5 or more people, a rating of at least 4 out of 5) is described in [markdown/user_study.md](markdown/user_study.md); its results are added to `eval_results.md` when it has been run.
 
 ---
 
@@ -499,21 +572,22 @@ A custom OpenCV pipeline detects page turns, splits two-page spreads, orders col
 ## Known Limitations
 
 - **Browser:** speech recognition needs Chrome or Edge; other browsers work with typed requests. The camera needs `http://localhost` or HTTPS.
-- **Free hosting is slow:** OCR runs on a shared CPU, so live guidance updates only a few times a second, and a free host sleeps when unused. Answers depend on the language model you configure.
+- **Hosting depends on your Mac:** the shared address works only while the Mac is awake and `run.py --share` is running, and every visitor's frames are read one at a time on that Mac (one OCR job at a time), so several visitors at once slow the live guidance. Answers depend on the language model you configure.
 - **Free API limits and privacy:** free model tiers are rate limited (requests per minute and per day vary by model and change over time); when the limit is reached the app says the model is busy. Free tiers may allow the provider to use submitted text to improve its products, so check the provider's terms before sending sensitive documents, or use a paid or self-hosted endpoint. "Read everything", expiry and page-number answers never call the model.
 - **Internet access is required:** spoken requests are processed by the browser's speech service, and answers come from a hosted language model. The voice needs no internet when Kokoro is set up; without it the voice comes from Microsoft's free Edge voice service.
 - **Mac only:** text recognition uses Apple Vision, which exists only on macOS, so the server cannot run on Linux or Windows.
 - **Local voice:** Kokoro needs a one-time download of about 350 MB and some CPU while it speaks (about 5 times faster than real time on an M3 Pro, so a long piece takes a few seconds before its first words). It is strongest in English.
 - **Unofficial backup voice:** the Edge voice is a free service without a published guarantee; if Microsoft changes it, the page falls back to the browser's own voice.
 - **Phones:** a phone allows sound only after a real tap, so the first sentence may wait for one (the page says "Tap the screen once to turn the voice on"). Hands-free listening works in Chrome on Android; iPhone Safari only starts listening from a tap, so there use the typed question or the buttons. A hidden tab or a locked screen can pause the audio.
+- **Live checks:** about 5 a second as the page sends frames (it waits 100 ms after each reply), below the 10 a second the requirements ask for.
 - **No voice interruption:** the microphone is inactive while the application speaks. Use `S` to stop a long answer.
 - **Background text:** any text in view (keyboard keys, a screen) may be included in the capture. Holding the item close to the camera reduces this.
 - **New captures:** a new item is captured only after the previous text leaves the view briefly, or after **New item** or "next".
 - **Recognition errors:** small, curved, reflective or blurred print may be misread, and answers can only be as accurate as the captured text. On real pharmacy photos, crumpled foil strips and the purple inkjet batch and date lines printed over blister bumps were the hardest (about 80 % key-line accuracy against 97 % on cartons).
-- **Glare coaching misses shiny packs:** the glare check looks for pure-white patches, so the reflections on foil strips, gold cartons and glossy bottles (bright, but not pure white) produce no "Glare" hint; in 148 real photos it never fired.
+- **Glare coaching misses shiny packs:** the glare check looks for pure-white patches, so the reflections on foil strips, gold cartons, glossy bottles and screens (bright, but not pure white) produce no "Glare" hint; in 164 real photos it never fired.
 - **Labels laid out in two columns:** when a batch number, date or price is printed a row above or below its label, or coded with symbols (`#` made, `@` use before), the language model can pair the wrong value with a label or not find it.
-- **Web lookups:** only the search query (the question and the product name) leaves the device; the captured text is not sent. Answers depend on the quality of search results. Lookups are never offered for item-specific details such as expiry, batch or price.
-- **Book mode:** evaluated on synthetic spreads and a real camera frame. Strong page curvature, uneven lighting, fingers over the text and illustrations near the centre of a spread can affect spine and column detection. Motion blur prevents recognition, so the book should be held steady or placed on a surface. When the view moves while a page is being read, a few words may be repeated, because the reading position is sent to the server before the new view has been recognised.
+- **Web lookups:** only the search query (the question and the product name) leaves the device; the captured text is not sent. Answers depend on the quality of search results: in the evaluation, when the results were about a different company, the model reported them as facts about the user's item instead of saying the results did not answer. Lookups are never offered for expiry, batch or price ("When was it manufactured?" still is).
+- **Book mode:** on a real book photographed on a patterned bedspread, the spine of a two-page spread was not found (0 of 4 spreads), so the page numbers were not announced and the two pages were read as one wide page (in the right order); on synthetic spreads it works. A page-turn read can start while the hand is still turning the page. Qwen 3B is too slow to group the paragraphs of a dense page within 12 seconds, so such pages are read in layout order. Strong page curvature, uneven lighting, fingers over the text and illustrations near the centre of a spread can affect spine and column detection. Motion blur prevents recognition, so the book should be held steady or placed on a surface. When the view moves while a page is being read, a few words may be repeated, because the reading position is sent to the server before the new view has been recognised.
 - **Model accuracy:** although the model is restricted to the captured text, a small model can still misread or confuse details. Medically important information should be confirmed with a pharmacist or doctor.
 - **One reader:** the earlier standalone Gemini reader (which read all text aloud with no questions) was removed; "read everything" does the same without a cloud API.
 
@@ -535,7 +609,7 @@ A custom OpenCV pipeline detects page turns, splits two-page spreads, orders col
 
 | Issue | Solution |
 |---|---|
-| "No API key is set" or "rejected the request" | Put your key in `LLM_API_KEY` (`helping_eyes/.env`) and restart. `/api/health` shows `llm_configured`, and also the OCR status, the memory in use and whether the Edge voice is on. |
+| "No API key is set" or "rejected the request" | Put your key in `LLM_API_KEY` (`helping_eyes/.env`) and restart. `/api/health` shows `llm_configured`, and also the OCR status, the memory in use and which voice speaks first (`tts_engine`). |
 | "The language model name was not found" (HTTP 404 in the log) | The key works but `LLM_MODEL` (or `LLM_BASE_URL`) is wrong. Google retires and restricts old model names (`gemini-2.5-flash-lite` stopped working for new keys). Look up the current Flash-Lite name on Google's model page and set it in `helping_eyes/.env`; the log line after "Language model returned HTTP 404" quotes Google's own explanation. |
 | "The language model is busy" | The free-tier limit was reached. Wait a minute, or switch model or provider with `LLM_MODEL` and `LLM_BASE_URL`. |
 | "I can't reach the language model" | Check the internet connection and `LLM_BASE_URL`. |
@@ -550,7 +624,7 @@ A custom OpenCV pipeline detects page turns, splits two-page spreads, orders col
 | Book mode does not read the page | Hold the book still for about one second; the `motion` value in the status bar must fall below the `still <` threshold. Keep hands off the page. |
 | Book mode restarts a page after the book moved | It no longer does: while a page is being read, nothing the camera sees (the book moving, a hand, even a page turn) interrupts it. Reading stops only when you ask ("stop", the Stop button) or the page is finished; a page turn seen meanwhile is read afterwards. Between pages, a small nudge is ignored because the page layout is compared after sliding it a little. |
 | A new item is not captured | Move the previous item out of view briefly, press **New item**, or say "next". |
-| Nothing happens when I speak | Press **Listen** and allow the microphone when the browser asks. Watch the status line: it should show "Hearing: ..." as you talk. If it shows a message instead, it explains the cause and listening is switched off: "could not reach its speech service" means the browser's speech recognition is offline or blocked (it needs internet and does not work in some browsers, for example Brave); "No microphone was found" or "access was denied" is fixed in the browser's site settings (the icon in the address bar). Type your question meanwhile. |
+| Nothing happens when I speak | Press **Listen** and allow the microphone when the browser asks. Watch the answer area: it should show "You said: ..." as you talk. If it shows a message instead, it explains the cause and listening is switched off: "could not reach its speech service" means the browser's speech recognition is offline or blocked (it needs internet and does not work in some browsers, for example Brave); "No microphone was found" or "access was denied" is fixed in the browser's site settings (the icon in the address bar). Type your question meanwhile. |
 | A spoken question is not recognised on a phone | Use Chrome on Android (iPhone Safari cannot listen hands-free). Each time the microphone reopens, a phone may beep; speak after the application has stopped talking. |
 | A spoken question is not recognised | Use Chrome or Edge, speak after the application has stopped talking (the microphone is off while it speaks), and speak clearly at normal speed. |
 | Text is read in the wrong language | Apple Vision is asked for English (`setRecognitionLanguages_(["en-US"])` in `recognize_text()`); change the language list there for other languages. |

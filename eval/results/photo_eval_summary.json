@@ -1,182 +1,215 @@
 {
- "photos": 148,
- "date": "2026-10-23",
+ "categories": {
+  "book_page": 5,
+  "document": 3,
+  "food_label": 6,
+  "medicine_box": 79,
+  "medicine_strip": 43,
+  "personal_care": 26,
+  "sign_or_screen": 2
+ },
+ "photos": 164,
+ "date": "2026-10-19",
  "reference": "Claude's reading of each photo",
  "qa_model": "qwen2.5:3b-instruct",
  "engines": {
   "apple_vision": {
-   "key_line_accuracy": 0.8974,
+   "key_line_accuracy": 0.9021,
    "key_line_accuracy_ci95": [
-    0.8723,
-    0.9214
+    0.8789,
+    0.9234
    ],
-   "fields_found": 473,
-   "fields_total": 675,
-   "fields_found_rate": 0.7007,
+   "fields_found": 500,
+   "fields_total": 711,
+   "fields_found_rate": 0.7032,
    "fields_found_ci95": [
-    0.6516,
-    0.7492
+    0.6548,
+    0.7493
    ],
-   "seconds_mean": 0.168,
-   "seconds_median": 0.164,
+   "seconds_mean": 0.18,
+   "seconds_median": 0.168,
    "photos_with_no_text": 1,
    "per_field": {
     "name": [
-     98,
-     124
+     102,
+     130
     ],
     "strength": [
      37,
      79
     ],
     "quantity": [
-     79,
-     98
+     82,
+     103
     ],
     "maker": [
-     83,
-     119
+     86,
+     123
     ],
     "batch": [
-     32,
-     49
+     33,
+     51
     ],
     "mfg": [
-     45,
-     68
+     47,
+     70
     ],
     "expiry": [
-     43,
-     66
+     44,
+     68
     ],
     "price": [
      56,
-     72
+     74
+    ],
+    "page": [
+     8,
+     8
+    ],
+    "title": [
+     5,
+     5
     ]
    }
   },
   "app_capture": {
-   "key_line_accuracy": 0.9011,
+   "key_line_accuracy": 0.9051,
    "key_line_accuracy_ci95": [
-    0.8765,
-    0.9243
+    0.8826,
+    0.9258
    ],
-   "fields_found": 476,
-   "fields_total": 675,
-   "fields_found_rate": 0.7052,
+   "fields_found": 503,
+   "fields_total": 711,
+   "fields_found_rate": 0.7075,
    "fields_found_ci95": [
-    0.6569,
-    0.7527
+    0.6602,
+    0.7529
    ],
-   "seconds_mean": 0.303,
-   "seconds_median": 0.281,
+   "seconds_mean": 0.314,
+   "seconds_median": 0.293,
    "photos_with_no_text": 1,
    "per_field": {
     "name": [
-     96,
-     124
+     100,
+     130
     ],
     "strength": [
      38,
      79
     ],
     "quantity": [
-     79,
-     98
+     82,
+     103
     ],
     "maker": [
-     86,
-     119
+     89,
+     123
     ],
     "batch": [
-     32,
-     49
+     33,
+     51
     ],
     "mfg": [
-     45,
-     68
+     47,
+     70
     ],
     "expiry": [
-     43,
-     66
+     44,
+     68
     ],
     "price": [
      57,
-     72
+     74
+    ],
+    "page": [
+     8,
+     8
+    ],
+    "title": [
+     5,
+     5
     ]
    }
   },
   "rapidocr": {
-   "key_line_accuracy": 0.8774,
+   "key_line_accuracy": 0.8841,
    "key_line_accuracy_ci95": [
-    0.8504,
-    0.903
+    0.8592,
+    0.907
    ],
-   "fields_found": 463,
-   "fields_total": 675,
-   "fields_found_rate": 0.6859,
+   "fields_found": 493,
+   "fields_total": 711,
+   "fields_found_rate": 0.6934,
    "fields_found_ci95": [
-    0.6313,
-    0.7399
+    0.6403,
+    0.7446
    ],
-   "seconds_mean": 0.599,
-   "seconds_median": 0.542,
+   "seconds_mean": 0.692,
+   "seconds_median": 0.563,
    "photos_with_no_text": 0,
    "per_field": {
     "name": [
-     102,
-     124
+     107,
+     130
     ],
     "strength": [
      40,
      79
     ],
     "quantity": [
-     78,
-     98
+     81,
+     103
     ],
     "maker": [
-     73,
-     119
+     76,
+     123
     ],
     "batch": [
-     36,
-     49
+     38,
+     51
     ],
     "mfg": [
+     44,
+     70
+    ],
+    "expiry": [
      42,
      68
     ],
-    "expiry": [
-     40,
-     66
-    ],
     "price": [
      52,
-     72
+     74
+    ],
+    "page": [
+     8,
+     8
+    ],
+    "title": [
+     5,
+     5
     ]
    }
   },
   "tesseract": {
-   "key_line_accuracy": 0.576,
+   "key_line_accuracy": 0.5923,
    "key_line_accuracy_ci95": [
-    0.5208,
-    0.6289
+    0.5419,
+    0.642
    ],
-   "fields_found": 169,
-   "fields_total": 675,
-   "fields_found_rate": 0.2504,
+   "fields_found": 182,
+   "fields_total": 711,
+   "fields_found_rate": 0.256,
    "fields_found_ci95": [
-    0.199,
-    0.3047
+    0.2057,
+    0.3108
    ],
-   "seconds_mean": 0.313,
-   "seconds_median": 0.269,
+   "seconds_mean": 0.361,
+   "seconds_median": 0.275,
    "photos_with_no_text": 18,
    "per_field": {
     "name": [
-     33,
-     124
+     34,
+     130
     ],
     "strength": [
      12,
@@ -184,32 +217,61 @@
     ],
     "quantity": [
      20,
-     98
+     103
     ],
     "maker": [
-     37,
-     119
+     38,
+     123
     ],
     "batch": [
      14,
-     49
+     51
     ],
     "mfg": [
      18,
-     68
+     70
     ],
     "expiry": [
      14,
-     66
+     68
     ],
     "price": [
      21,
-     72
+     74
+    ],
+    "page": [
+     8,
+     8
+    ],
+    "title": [
+     3,
+     5
     ]
    }
   }
  },
  "by_category": {
+  "book_page": {
+   "photos": 5,
+   "apple_vision": 0.9712,
+   "app_capture": 0.9601,
+   "rapidocr": 0.972,
+   "tesseract": 0.8063
+  },
+  "document": {
+   "photos": 3,
+   "apple_vision": 0.9989,
+   "app_capture": 0.9989,
+   "rapidocr": 0.9989,
+   "tesseract": 0.9761
+  },
+  "food_label": {
+   "photos": 6,
+   "apple_vision": 0.854,
+   "app_capture": 0.8629,
+   "rapidocr": 0.848,
+   "tesseract": 0.4832
+  },
   "medicine_box": {
    "photos": 79,
    "apple_vision": 0.9666,
@@ -231,46 +293,60 @@
    "rapidocr": 0.8298,
    "tesseract": 0.6006
   },
+  "sign_or_screen": {
+   "photos": 2,
+   "apple_vision": 1.0,
+   "app_capture": 1.0,
+   "rapidocr": 0.9962,
+   "tesseract": 0.7586
+  },
   "condition: good light": {
-   "photos": 104,
-   "apple_vision": 0.9101,
-   "app_capture": 0.9118,
-   "rapidocr": 0.8935,
-   "tesseract": 0.5722
+   "photos": 112,
+   "apple_vision": 0.9136,
+   "app_capture": 0.9151,
+   "rapidocr": 0.9,
+   "tesseract": 0.5937
   },
   "condition: glare": {
-   "photos": 44,
-   "apple_vision": 0.8679,
-   "app_capture": 0.8761,
-   "rapidocr": 0.8402,
-   "tesseract": 0.5847
+   "photos": 50,
+   "apple_vision": 0.8788,
+   "app_capture": 0.8861,
+   "rapidocr": 0.8525,
+   "tesseract": 0.5957
+  },
+  "condition: dim": {
+   "photos": 2,
+   "apple_vision": 0.787,
+   "app_capture": 0.7639,
+   "rapidocr": 0.7106,
+   "tesseract": 0.3403
   },
   "condition: flat": {
-   "photos": 101,
-   "apple_vision": 0.9266,
-   "app_capture": 0.9297,
-   "rapidocr": 0.9224,
-   "tesseract": 0.6164
+   "photos": 106,
+   "apple_vision": 0.9264,
+   "app_capture": 0.9295,
+   "rapidocr": 0.9232,
+   "tesseract": 0.6195
   },
   "condition: tilted": {
-   "photos": 6,
-   "apple_vision": 0.9378,
-   "app_capture": 0.945,
-   "rapidocr": 0.8474,
-   "tesseract": 0.5553
+   "photos": 14,
+   "apple_vision": 0.9681,
+   "app_capture": 0.9685,
+   "rapidocr": 0.9432,
+   "tesseract": 0.753
   },
   "condition: curved": {
-   "photos": 41,
-   "apple_vision": 0.8054,
-   "app_capture": 0.8105,
-   "rapidocr": 0.7466,
-   "tesseract": 0.4577
+   "photos": 44,
+   "apple_vision": 0.8044,
+   "app_capture": 0.8084,
+   "rapidocr": 0.7459,
+   "tesseract": 0.4494
   }
  },
  "answers": {
   "read_all": {
    "question": "Read everything",
-   "asked": 148,
+   "asked": 164,
    "scored": 0,
    "correct": 0,
    "said_not_in_text": 0,
@@ -282,9 +358,9 @@
    "asked": 148,
    "scored": 148,
    "correct": 90,
-   "said_not_in_text": 47,
+   "said_not_in_text": 48,
    "with_numbers_not_in_text": 0,
-   "seconds_mean": 0.83
+   "seconds_mean": 0.93
   },
   "use": {
    "question": "What is it used for?",
@@ -293,97 +369,97 @@
    "correct": 0,
    "said_not_in_text": 133,
    "with_numbers_not_in_text": 0,
-   "seconds_mean": 0.41
+   "seconds_mean": 0.56
   },
   "ingredients": {
    "question": "What are the ingredients or active ingredients?",
    "asked": 148,
    "scored": 0,
    "correct": 0,
-   "said_not_in_text": 35,
-   "with_numbers_not_in_text": 1,
-   "seconds_mean": 0.62
+   "said_not_in_text": 31,
+   "with_numbers_not_in_text": 0,
+   "seconds_mean": 0.77
   },
   "strength": {
    "question": "What is the strength or dose of the medicine?",
    "asked": 148,
    "scored": 148,
-   "correct": 80,
-   "said_not_in_text": 73,
+   "correct": 81,
+   "said_not_in_text": 77,
    "with_numbers_not_in_text": 0,
-   "seconds_mean": 0.41
+   "seconds_mean": 0.52
   },
   "how_to_use": {
    "question": "How should I take or use it?",
    "asked": 148,
    "scored": 0,
    "correct": 0,
-   "said_not_in_text": 62,
+   "said_not_in_text": 61,
    "with_numbers_not_in_text": 0,
-   "seconds_mean": 0.46
+   "seconds_mean": 0.59
   },
   "quantity": {
    "question": "How much is in the pack?",
    "asked": 148,
    "scored": 147,
-   "correct": 74,
-   "said_not_in_text": 100,
+   "correct": 77,
+   "said_not_in_text": 103,
    "with_numbers_not_in_text": 1,
-   "seconds_mean": 0.35
+   "seconds_mean": 0.49
   },
   "expiry": {
    "question": "When does it expire?",
    "asked": 148,
    "scored": 136,
    "correct": 86,
-   "said_not_in_text": 113,
+   "said_not_in_text": 111,
    "with_numbers_not_in_text": 0,
-   "seconds_mean": 0.36
+   "seconds_mean": 0.43
   },
   "expired": {
    "question": "Has it expired?",
    "asked": 148,
    "scored": 136,
-   "correct": 94,
+   "correct": 97,
    "said_not_in_text": 124,
    "with_numbers_not_in_text": 2,
-   "seconds_mean": 0.39
+   "seconds_mean": 0.48
   },
   "mfg": {
    "question": "When was it manufactured?",
    "asked": 148,
    "scored": 133,
    "correct": 83,
-   "said_not_in_text": 108,
+   "said_not_in_text": 109,
    "with_numbers_not_in_text": 4,
-   "seconds_mean": 0.38
+   "seconds_mean": 0.44
   },
   "batch": {
    "question": "What is the batch number?",
    "asked": 148,
    "scored": 117,
-   "correct": 77,
+   "correct": 76,
    "said_not_in_text": 98,
    "with_numbers_not_in_text": 2,
-   "seconds_mean": 0.37
+   "seconds_mean": 0.43
   },
   "price": {
    "question": "What is the price?",
    "asked": 148,
    "scored": 137,
-   "correct": 92,
+   "correct": 91,
    "said_not_in_text": 102,
-   "with_numbers_not_in_text": 2,
-   "seconds_mean": 0.41
+   "with_numbers_not_in_text": 1,
+   "seconds_mean": 0.51
   },
   "maker": {
    "question": "Who makes it?",
    "asked": 148,
    "scored": 147,
-   "correct": 106,
-   "said_not_in_text": 42,
+   "correct": 107,
+   "said_not_in_text": 40,
    "with_numbers_not_in_text": 0,
-   "seconds_mean": 0.36
+   "seconds_mean": 0.46
   },
   "storage": {
    "question": "How should I store it?",
@@ -392,25 +468,25 @@
    "correct": 0,
    "said_not_in_text": 63,
    "with_numbers_not_in_text": 2,
-   "seconds_mean": 0.37
+   "seconds_mean": 0.49
   },
   "warnings": {
    "question": "Are there any warnings or precautions?",
    "asked": 148,
    "scored": 0,
    "correct": 0,
-   "said_not_in_text": 101,
+   "said_not_in_text": 102,
    "with_numbers_not_in_text": 0,
-   "seconds_mean": 0.46
+   "seconds_mean": 0.62
   },
   "children": {
    "question": "Is it safe for children?",
    "asked": 148,
    "scored": 0,
    "correct": 0,
-   "said_not_in_text": 116,
+   "said_not_in_text": 117,
    "with_numbers_not_in_text": 0,
-   "seconds_mean": 0.43
+   "seconds_mean": 0.51
   },
   "pregnancy": {
    "question": "Can I use it during pregnancy?",
@@ -419,16 +495,16 @@
    "correct": 0,
    "said_not_in_text": 145,
    "with_numbers_not_in_text": 0,
-   "seconds_mean": 0.45
+   "seconds_mean": 0.5
   },
   "prescription": {
    "question": "Does it need a prescription?",
    "asked": 148,
    "scored": 29,
-   "correct": 17,
+   "correct": 18,
    "said_not_in_text": 106,
    "with_numbers_not_in_text": 0,
-   "seconds_mean": 0.41
+   "seconds_mean": 0.57
   },
   "external": {
    "question": "Is it for external use only?",
@@ -437,7 +513,7 @@
    "correct": 10,
    "said_not_in_text": 132,
    "with_numbers_not_in_text": 0,
-   "seconds_mean": 0.42
+   "seconds_mean": 0.54
   },
   "side_effects": {
    "question": "What are the side effects?",
@@ -446,7 +522,7 @@
    "correct": 0,
    "said_not_in_text": 146,
    "with_numbers_not_in_text": 0,
-   "seconds_mean": 0.39
+   "seconds_mean": 0.5
   },
   "alcohol": {
    "question": "Can I drink alcohol while using it?",
@@ -455,95 +531,195 @@
    "correct": 0,
    "said_not_in_text": 147,
    "with_numbers_not_in_text": 0,
-   "seconds_mean": 0.44
+   "seconds_mean": 0.54
+  },
+  "x_name": {
+   "question": "What is it? (name, title)",
+   "asked": 7,
+   "scored": 7,
+   "correct": 2,
+   "said_not_in_text": 2,
+   "with_numbers_not_in_text": 0,
+   "seconds_mean": 1.57
+  },
+  "x_quantity": {
+   "question": "Quantity or amount",
+   "asked": 5,
+   "scored": 5,
+   "correct": 3,
+   "said_not_in_text": 2,
+   "with_numbers_not_in_text": 0,
+   "seconds_mean": 0.39
+  },
+  "x_ingredients": {
+   "question": "Ingredients or contents",
+   "asked": 5,
+   "scored": 1,
+   "correct": 1,
+   "said_not_in_text": 1,
+   "with_numbers_not_in_text": 0,
+   "seconds_mean": 0.82
+  },
+  "x_detail": {
+   "question": "A specific detail (time, phone line, number, step)",
+   "asked": 47,
+   "scored": 47,
+   "correct": 26,
+   "said_not_in_text": 8,
+   "with_numbers_not_in_text": 1,
+   "seconds_mean": 0.58
+  },
+  "x_date": {
+   "question": "Dates (best before, use by, issue date)",
+   "asked": 7,
+   "scored": 7,
+   "correct": 5,
+   "said_not_in_text": 4,
+   "with_numbers_not_in_text": 1,
+   "seconds_mean": 0.53
+  },
+  "x_price": {
+   "question": "Price",
+   "asked": 6,
+   "scored": 6,
+   "correct": 4,
+   "said_not_in_text": 4,
+   "with_numbers_not_in_text": 0,
+   "seconds_mean": 0.35
+  },
+  "x_instructions": {
+   "question": "Instructions or warnings",
+   "asked": 3,
+   "scored": 0,
+   "correct": 0,
+   "said_not_in_text": 0,
+   "with_numbers_not_in_text": 0,
+   "seconds_mean": 0.42
+  },
+  "x_expired": {
+   "question": "Has it expired?",
+   "asked": 3,
+   "scored": 3,
+   "correct": 0,
+   "said_not_in_text": 3,
+   "with_numbers_not_in_text": 0,
+   "seconds_mean": 0.38
+  },
+  "x_absent": {
+   "question": "Something the photo does not say",
+   "asked": 12,
+   "scored": 12,
+   "correct": 12,
+   "said_not_in_text": 12,
+   "with_numbers_not_in_text": 0,
+   "seconds_mean": 0.42
+  },
+  "x_page": {
+   "question": "Page number",
+   "asked": 7,
+   "scored": 7,
+   "correct": 0,
+   "said_not_in_text": 5,
+   "with_numbers_not_in_text": 0,
+   "seconds_mean": 2.17
+  },
+  "x_summary": {
+   "question": "What is it about?",
+   "asked": 6,
+   "scored": 0,
+   "correct": 0,
+   "said_not_in_text": 2,
+   "with_numbers_not_in_text": 1,
+   "seconds_mean": 1.02
   }
  },
  "checks": {
   "problems_flagged": {},
-  "photos_with_glare_blobs": 15,
-  "photos_with_blurry_text_patches": 13,
-  "photos_with_dark_patches": 126,
-  "photos_with_slant": 64,
-  "outline_found": 134,
+  "photos_with_glare_blobs": 18,
+  "photos_with_blurry_text_patches": 14,
+  "photos_with_dark_patches": 142,
+  "photos_with_slant": 65,
+  "outline_found": 150,
   "capture_version": {
-   "flattened": 14,
-   "original": 134
+   "book": 5,
+   "flattened": 16,
+   "original": 143
   },
   "glare_vs_reference": {
    "both": 0,
    "app_only": 0,
-   "reference_only": 44,
-   "neither": 104
+   "reference_only": 50,
+   "neither": 114
   },
   "sharpness": {
    "min": 247.6,
-   "median": 1966.0,
+   "median": 2009.3,
    "max": 7933.8
   },
   "brightness": {
-   "min": 96.4,
+   "min": 66.2,
    "median": 138.45,
    "max": 166.6
   },
   "contrast": {
    "min": 34.5,
-   "median": 47.8,
-   "max": 69.6
+   "median": 49.05,
+   "max": 76.0
   },
   "glare_percent_max": 0.12,
   "glare_blobs_by_label": {
-   "glare": 6,
-   "good": 9,
+   "glare": 7,
+   "good": 11,
    "dim": 0
   },
   "lighting_labels": {
-   "glare": 44,
-   "good": 104,
-   "dim": 0
+   "glare": 50,
+   "good": 112,
+   "dim": 2
   },
   "blurry_tiles": [
-   21,
-   8466
+   22,
+   10087
   ],
   "slant_by_angle": {
    "flat": [
     37,
-    101
+    106
    ],
    "tilted": [
     4,
-    6
+    14
    ],
    "curved": [
-    23,
-    41
+    24,
+    44
    ]
   },
   "slant_abs": {
    "min": 1.5,
-   "median": 2.95,
+   "median": 3.0,
    "max": 25.9
   },
-  "would_flatten": 71,
+  "would_flatten": 83,
   "page_fill": {
    "min": 3.0,
-   "median": 22.0,
-   "max": 67.0
+   "median": 23.0,
+   "max": 79.0
   },
-  "fills_75": 0,
+  "fills_75": 1,
   "hints": 0
  },
  "answers_overall": {
-  "scored": 1289,
-  "correct": 809,
-  "accuracy": 0.6276,
+  "scored": 1384,
+  "correct": 869,
+  "accuracy": 0.6279,
   "ci95": [
-   0.5884,
-   0.6669
+   0.5908,
+   0.6647
   ]
  },
  "git": {
-  "commit": "5143bf2",
+  "commit": "7e36162",
   "dirty": true
  }
 }

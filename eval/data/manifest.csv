@@ -147,3 +147,19 @@ pc23,personal_care,good,curved,phone,values offset from labels; transparent bott
 pc24,personal_care,good,flat,phone,dates on the base; busy shop background
 pc25,personal_care,good,curved,phone,letter-coded dates; busy shop background
 pc26,personal_care,glare,curved,phone,symbol-coded dates; glare on the right half
+bp01,book_page,good,flat,phone,left page is an index with page numbers on each line and no printed page number 
+bp02,book_page,good,tilted,phone,
+bp03,book_page,good,tilted,phone,
+bp04,book_page,good,tilted,phone,
+bp05,book_page,good,tilted,phone,
+dc01,document,good,flat,phone,"a hand's shadow covers the lower, mostly blank half"
+dc02,document,glare,tilted,phone,shadows and a bright reflection across the lower half
+dc03,document,glare,tilted,phone,a diagonal shadow and a glare streak cross the page
+fl01,food_label,glare,flat,phone,"code, packing date, use-by date and mrp are under the seal (not in the photo)"
+fl02,food_label,good,flat,phone,"labels (mrp, unit sale price, no"
+fl03,food_label,dim,curved,phone,upside down in the photo
+fl04,food_label,dim,curved,phone,the nutrition table is small and blurred toward the tub's edge
+fl05,food_label,glare,curved,phone,expired on 8 june 2024
+fl06,food_label,good,flat,phone,faint dot-matrix print: expiry reads about 29/jun/2025 (expired either way)
+ss01,sign_or_screen,glare,tilted,phone,screen reflections
+ss02,sign_or_screen,glare,tilted,phone,a glare band crosses the left sidebar
