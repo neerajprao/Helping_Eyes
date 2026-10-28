@@ -3,7 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Helping Eyes</title>
+  <meta name="color-scheme" content="light dark">
+  <title>Helping Eyes – camera reading assistant</title>
   <meta name="description" content="Camera-based reading assistant: show text to the camera, then ask about it. Reads books page by page.">
   <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/static/style.css">
@@ -11,23 +12,33 @@
 <body>
   <header>
     <h1>Helping Eyes</h1>
-    <p class="tagline">Show a label, letter or book to the camera and follow the spoken guidance. Then ask about it.</p>
+    <details class="settings">
+      <summary>Settings</summary>
+      <div class="settings-panel">
+        <label class="toggle"><input id="sr-mode" type="checkbox"> My screen reader reads everything (the app's own voice stays quiet)</label>
+        <label class="toggle"><input id="shortcuts" type="checkbox" checked> Single-key shortcuts (C, R, B, A, P, S, M)</label>
+      </div>
+    </details>
   </header>
 
   <main>
+    <p class="tagline">Show a label, letter or book to the camera and follow the spoken guidance. Then ask about it.</p>
+
     <section aria-labelledby="capture-heading" class="card">
       <h2 id="capture-heading">1. Show it to the camera</h2>
       <div class="camera">
         <video id="video" autoplay playsinline muted aria-label="Camera preview"></video>
         <img id="still" alt="Uploaded photo" hidden>
         <canvas id="overlay" aria-hidden="true"></canvas>
-        <button id="shutter" class="shutter" type="button" aria-label="Take the photo now" title="Take the photo now (C)" hidden></button>
+        <!-- A big touch target for the same action as "Capture now": kept out of the tab order and the screen reader's list so
+             keyboard and screen-reader users meet the action once -->
+        <button id="shutter" class="shutter" type="button" aria-label="Take the photo now" title="Take the photo now (C)" tabindex="-1" aria-hidden="true" hidden></button>
         <p id="camera-message" class="camera-message" hidden></p>
       </div>
       <div class="row">
-        <button id="capture" class="primary">Capture now <kbd>C</kbd></button>
-        <button id="newitem" class="secondary">New item <kbd>R</kbd></button>
-        <button id="bookmode" class="secondary" aria-pressed="false">Book mode <kbd>B</kbd></button>
+        <button id="capture" class="primary" aria-keyshortcuts="C">Capture now <kbd>C</kbd></button>
+        <button id="newitem" class="secondary" aria-keyshortcuts="R">New item <kbd>R</kbd></button>
+        <button id="bookmode" class="secondary" aria-pressed="false" aria-keyshortcuts="B">Book mode <kbd>B</kbd></button>
         <label class="button secondary" for="upload">Upload photo</label>
         <input id="upload" type="file" accept="image/*" capture="environment" class="visually-hidden">
         <button id="back-to-camera" class="secondary" hidden>Back to camera</button>
@@ -42,25 +53,32 @@
     <section aria-labelledby="ask-heading" class="card">
       <h2 id="ask-heading">2. Ask</h2>
       <div class="row">
-        <label for="model">Model</label>
+        <label for="model">Answers from</label>
         <select id="model">
-          <option value="gemini">Gemini (online)</option>
-          <option value="qwen3b">Qwen 3B (on this Mac)</option>
+          <option value="gemini">Online AI (Gemini)</option>
+          <option value="qwen3b">Offline AI on this computer (Qwen)</option>
         </select>
       </div>
       <form id="ask-form" class="row">
         <label for="question" class="visually-hidden">Your question</label>
         <input id="question" type="text" placeholder="e.g. When does it expire?" autocomplete="off">
         <button type="submit" class="primary">Ask</button>
-        <button type="button" id="mic" class="secondary" aria-pressed="false">Listen <kbd>M</kbd></button>
+        <button type="button" id="mic" class="secondary" aria-pressed="false" aria-keyshortcuts="M">Listen <kbd>M</kbd></button>
       </form>
       <div class="row">
-        <button id="read-all" class="secondary">Read everything <kbd>A</kbd></button>
-        <button id="repeat" class="secondary">Repeat <kbd>P</kbd></button>
-        <button id="stop" class="danger">Stop <kbd>S</kbd></button>
+        <button id="read-all" class="secondary" aria-keyshortcuts="A">Read everything <kbd>A</kbd></button>
+        <button id="repeat" class="secondary" aria-keyshortcuts="P">Repeat <kbd>P</kbd></button>
+        <button id="stop" class="neutral" aria-keyshortcuts="S">Stop <kbd>S</kbd></button>
       </div>
-      <p class="hint">Say or type: "read everything", "read only the dosage", "when does it expire?", "next",
-        "book mode", "look it up", "stop". Listening pauses while the app is talking.</p>
+      <details class="hint">
+        <summary>What can I say?</summary>
+        <ul>
+          <li>"Read everything", or "read only the dosage"</li>
+          <li>A question, such as "When does it expire?"</li>
+          <li>"Next" for a new item, "book mode", "look it up", "stop"</li>
+        </ul>
+        <p>Listening pauses while the app is talking.</p>
+      </details>
       <div id="offer" class="offer" hidden>
         <p>The text doesn't say. Should I look it up online?</p>
         <button id="offer-yes" class="primary">Yes, look it up</button>
@@ -70,9 +88,12 @@
 
     <section aria-labelledby="answer-heading" class="card">
       <h2 id="answer-heading">Answer</h2>
-      <p id="status" class="status" role="status" aria-live="polite">Allow camera access, then show something to read.</p>
+      <!-- Not a live region: the app speaks everything important itself, or (Settings) hands it to the screen reader
+           through #sr-live. A live status line would make a screen reader repeat what the app has just said. -->
+      <p id="status" class="status">Allow camera access, then show something to read.</p>
       <p id="you-said" class="you-said" hidden></p>
-      <div id="answer" class="answer" aria-live="polite"></div>
+      <!-- tabindex: on a laptop the answer scrolls in its own box, so the keyboard must be able to reach and scroll it -->
+      <div id="answer" class="answer" tabindex="0" role="group" aria-labelledby="answer-heading"></div>
     </section>
   </main>
 
@@ -80,6 +101,9 @@
     <p>Answers come only from the captured text; web answers are marked "According to the web".
        Check medical information with a pharmacist or doctor.</p>
   </footer>
+  <!-- What the app would say aloud, for a screen reader or a braille display (see Settings); always used for messages
+       the app cannot speak, such as "tap the screen to turn the voice on" -->
+  <div id="sr-live" class="visually-hidden" aria-live="polite"></div>
   <canvas id="canvas" hidden></canvas>
   <script src="/static/app.js"></script>
 </body>

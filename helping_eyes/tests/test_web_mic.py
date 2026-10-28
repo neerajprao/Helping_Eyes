@@ -200,9 +200,9 @@ def press_listen(page):
 def scenario_hearing(page):
     press_listen(page)
     page.wait(READY)
-    assert page.js(LABEL) == "Stop listening" and page.js(PRESSED) == "true"
+    assert page.js(LABEL) == "Listen" and page.js(PRESSED) == "true"     # one fixed name; the pressed state says it is open
     page.js("window.__say('how many tablets', false)")                 # still speaking: shown as it is heard
-    assert page.js(STATUS) == "Hearing: how many tablets…"
+    assert page.js("document.getElementById('you-said').textContent") == "You said: how many tablets…"
     assert page.js("window.__asked.length") == 0                       # nothing is sent until the sentence is complete
     page.js("window.__say('stop', true)")                              # the finished sentence
     page.wait("window.__asked.length === 1")

@@ -12,9 +12,11 @@ What each button on the page does, and what you can say or type.
 | **Upload photo** | – | Pick a picture from your device instead of using the camera. It is shown where the camera preview is, with sharpness, light and glare info. In book mode it is read like a camera page, with the reading overlay and highlight. |
 | **Uploaded photo is a two-page spread** | – | Tick it before uploading a photo of two facing pages, in normal mode, so they are split and read in order. |
 | **Back to camera** | – | Appears while an uploaded photo is shown (the camera is switched off meanwhile). Switches the camera back on and returns to the live view. |
-| **Model** menu | – | Chooses who answers your questions: Gemini (online) or Qwen 3B (running on this Mac through Ollama). Your choice is remembered. |
+| **Answers from** menu | – | Chooses who answers your questions: *Online AI (Gemini)*, or *Offline AI on this computer (Qwen)*, Qwen 3B running on this Mac through Ollama. Your choice is remembered. |
+| **What can I say?** | – | Opens a short list of the things you can say or type (hidden on short laptop screens). |
+| **Settings** (top right) | – | *My screen reader reads everything*: the app's own voice stays quiet and your screen reader (or braille display) gets everything instead. *Single-key shortcuts*: switch the one-letter keys (C, R, B, A, P, S, M) off if they clash with your screen reader. Both are remembered. |
 | **Ask** | `Enter` in the box | Sends the question you typed. |
-| **Listen** | `M` | Turns the microphone on or off. The button shows when the microphone is really open: it goes off while the app is talking or thinking and turns itself on again when the app is quiet. Press it while the app is talking to stop the talking and listen straight away. |
+| **Listen** | `M` | Turns the microphone on or off; the app says "Listening" or "Listening is off". The button is filled, with a check mark, while the microphone is really open: it goes off while the app is talking or thinking and turns itself on again when the app is quiet. Press it while the app is talking to stop the talking and listen straight away. |
 | **Read everything** | `A` | Reads all the captured text aloud. Same as saying "read everything". |
 | **Repeat** | `P` | Says the last answer again. |
 | **Stop** | `S` | Stops speaking straight away. |

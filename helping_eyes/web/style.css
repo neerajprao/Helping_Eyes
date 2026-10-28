@@ -1,155 +1,375 @@
+/* Helping Eyes: calm, uncluttered, the camera is the hero. Accessibility wins wherever it conflicts with looks:
+   every colour pair below was measured (body and answer text at least 7:1, everything else at least 4.5:1). */
 :root {
-  --bg: #f4f5f7;
+  color-scheme: light dark;
+  --page: #f5f5f7;
   --card: #ffffff;
-  --text: #16181d;
-  --muted: #555b66;
-  --primary: #1f4e79;
-  --primary-text: #ffffff;
-  --border: #c9ced6;
-  --danger: #a3261b;
-  --highlight: #ffe58a;
-  --focus: #ff9d00;
+  --text: #1d1d1f;              /* 16.8:1 on a card, 15.5:1 on the page */
+  --text-2: #515154;            /* secondary: 7.9:1 on a card, 7.3:1 on the page */
+  --accent: #004c9f;            /* 8.3:1 on a card, 7.6:1 on the page */
+  --on-accent: #ffffff;         /* 8.3:1 on the accent */
+  --accent-tint: #ebf1f7;       /* accent at 8 %: accent text on it 7.3:1 */
+  --chip: #ebf1f7;              /* text on it 15.1:1 */
+  --neutral: #e8e8ed;           /* Stop: text on it 13.8:1 (not red: stopping the voice is not destructive) */
+  --fill: #f0f0f3;              /* question box: text 14.8:1, placeholder 7.0:1 */
+  --field-border: #86868b;      /* edge of the question box and menu: 3.6:1 on a card, 3.2:1 on the fill */
+  --mark: #ffe58a;              /* the word being read: text on it 13.5:1 */
+  --card-border: transparent;
+  --card-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 6px 20px rgba(0, 0, 0, 0.06);
+  --bar: rgba(255, 255, 255, 0.94);     /* nearly solid: the bar's text keeps 7:1 even with a black picture under it */
+  --bar-solid: #ffffff;
+  --hairline: rgba(0, 0, 0, 0.14);
+  --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%231d1d1f' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  --ease: cubic-bezier(0.28, 0.11, 0.32, 1);
+  --radius-card: 20px;
+  --tap: 48px;                  /* touch target height: 48 px on phones, 44 px on a laptop */
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", system-ui, sans-serif;
 }
 
 @media (prefers-color-scheme: dark) {
+  ::highlight(speaking) { background-color: #5c4a00; color: #f5f5f7; }
   :root {
-    --bg: #111317;
-    --card: #1b1e24;
-    --text: #eef0f3;
-    --muted: #a8afbb;
-    --primary: #6aa8e0;
-    --primary-text: #0b1420;
-    --border: #3a404b;
-    --danger: #ff8a80;
-    --highlight: #6b5a00;
+    --page: #000000;
+    --card: #1c1c1e;
+    --text: #f5f5f7;            /* 15.6:1 on a card, 19.3:1 on the page */
+    --text-2: #c7c7cc;          /* 10.1:1 on a card, 12.5:1 on the page */
+    --accent: #86c3ff;          /* 9.1:1 on a card, 11.3:1 on the page */
+    --on-accent: #000000;       /* 11.3:1 on the accent */
+    --accent-tint: #272d34;     /* accent at 10 %: accent text on it 7.5:1 */
+    --chip: #2b333e;            /* text on it 11.7:1 */
+    --neutral: #3a3a3c;         /* text on it 10.4:1 */
+    --fill: #2c2c2e;            /* text 12.8:1, placeholder 8.3:1 */
+    --field-border: #8e8e93;    /* 5.2:1 on a card */
+    --mark: #5c4a00;            /* text on it 7.9:1 */
+    --card-border: rgba(255, 255, 255, 0.12);
+    --card-shadow: none;
+    --bar: rgba(0, 0, 0, 0.9);
+    --bar-solid: #000000;
+    --hairline: rgba(255, 255, 255, 0.18);
+    --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%23f5f5f7' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   }
 }
 
 * { box-sizing: border-box; }
+/* Sizes are relative to the browser's own text size (18 px at the usual 16 px), so a larger text setting enlarges the page */
+html { font-size: 112.5%; }
 [hidden] { display: none !important; }
 
 body {
   margin: 0;
-  font: 18px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  background: var(--bg);
+  font: 1rem/1.5 var(--font);
+  background: var(--page);
   color: var(--text);
+  -webkit-font-smoothing: antialiased;
 }
 
-header, main, footer { max-width: 860px; margin: 0 auto; padding: 0 16px; }
-header h1 { margin: 24px 0 4px; font-size: 1.8rem; }
-.tagline, footer { color: var(--muted); }
-footer { font-size: 0.9rem; padding-bottom: 32px; }
+h1, h2 { font-weight: 600; letter-spacing: -0.01em; line-height: 1.2; }
 
+/* ---------------------------------------------------------------- header: a slim translucent bar */
+header {
+  position: sticky; top: 0; z-index: 10;
+  background: var(--bar-solid);
+  border-bottom: 1px solid var(--hairline);
+  padding: 0 max(16px, calc((100% - 860px) / 2));
+}
+@supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  header {
+    background: var(--bar);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    backdrop-filter: saturate(180%) blur(20px);
+  }
+}
+@media (prefers-reduced-transparency: reduce) {
+  header { background: var(--bar-solid); -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
+header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+header h1 { margin: 0; font-size: 1.15rem; line-height: 52px; }
+
+/* Settings: a small panel that opens under the top bar, so it takes no room from the page */
+.settings { position: relative; }
+.settings > summary { color: var(--accent); }
+.settings-panel {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 20;
+  width: min(380px, calc(100vw - 32px)); padding: 10px 16px;
+  background: var(--card); color: var(--text);
+  border: 1px solid var(--hairline); border-radius: 16px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+}
+.settings-panel .toggle { align-items: flex-start; padding: 8px 0; }
+.settings-panel .toggle input { margin-top: 3px; flex: none; }
+.no-shortcuts kbd { display: none; }                 /* single-key shortcuts switched off: no key hints */
+
+/* The word being spoken (CSS Custom Highlight API: the answer text itself is never rewritten) */
+::highlight(speaking) { background-color: #ffe58a; color: #1d1d1f; }
+
+main, footer { max-width: 860px; margin-left: auto; margin-right: auto; padding: 0 16px; }
+.tagline { color: var(--text-2); margin: 16px 0 0; }
+footer { color: var(--text-2); font-size: 0.875rem; text-align: center; margin-top: 40px; padding-bottom: 40px; }
+
+/* ---------------------------------------------------------------- cards */
 .card {
   background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 16px;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--card-shadow);
+  padding: 20px;
   margin: 16px 0;
 }
-.card h2 { margin: 0 0 12px; font-size: 1.2rem; }
+.card h2 { margin: 0 0 14px; font-size: 1.25rem; }
 
-.camera { position: relative; background: #000; border-radius: 8px; overflow: hidden; }
+/* ---------------------------------------------------------------- camera */
+.camera { position: relative; background: #000; border-radius: 22px; overflow: hidden; }
 video, #still { display: block; width: 100%; height: auto; }
 video[hidden], #still[hidden] { display: none; }
 #overlay { position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; }
 .camera-message { color: #fff; padding: 24px; margin: 0; }
 
-/* The shutter: a big round button on the camera picture that takes the photo now */
+/* The shutter, like a phone camera's: a white disc inside a white ring. It takes the photo now. */
 .shutter {
-  position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%);
-  width: 68px; height: 68px; min-height: 0; padding: 0; border-radius: 50%;
-  background: #fff; border: 5px solid rgba(255, 255, 255, 0.55); box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.45);
+  position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%);
+  width: 74px; height: 74px; min-height: 0; padding: 5px; border-radius: 50%;
+  background: #fff; background-clip: content-box;
+  border: 4px solid #fff;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35), 0 2px 10px rgba(0, 0, 0, 0.45);
   justify-content: center;
+  transition: transform 200ms var(--ease), background-color 200ms var(--ease);
 }
-.shutter:active { background: #d9dde3; transform: translateX(-50%) scale(0.94); }
+.shutter:hover { background-color: #e5e5ea; }
+.shutter:active { transform: translateX(-50%) scale(0.92); }
 .shutter:disabled { opacity: 0.6; }
+.shutter:focus-visible { outline-color: #fff; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35), 0 0 0 9px #000; }
 .camera.flash::after { content: ""; position: absolute; inset: 0; background: #fff; opacity: 0; animation: flash 0.35s ease-out; pointer-events: none; }
 @keyframes flash { from { opacity: 0.85; } to { opacity: 0; } }
+@media (max-width: 600px) {
+  .shutter { width: 62px; height: 62px; padding: 4px; border-width: 3px; bottom: 10px; }   /* the preview is small on a phone */
+}
 
-.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 12px; }
+/* ---------------------------------------------------------------- buttons */
+.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 14px; }
 
 button, .button {
   font: inherit;
-  min-height: 48px;
-  padding: 8px 18px;
-  border-radius: 8px;
-  border: 2px solid var(--primary);
+  font-weight: 500;
+  min-height: var(--tap);
+  padding: 8px 20px;
+  border-radius: 980px;
+  border: 2px solid transparent;          /* invisible here, drawn in Windows High Contrast */
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  line-height: 1.2;
+  transition: background-color 200ms var(--ease), color 200ms var(--ease), transform 150ms var(--ease),
+              box-shadow 200ms var(--ease);
 }
-.primary { background: var(--primary); color: var(--primary-text); font-weight: 600; }
-.secondary { background: transparent; color: var(--primary); }
-.danger { background: transparent; color: var(--danger); border-color: var(--danger); }
-button:disabled { opacity: 0.5; cursor: not-allowed; }
-button:focus-visible, .button:focus-within, input:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
-button[aria-pressed="true"] { background: var(--danger); border-color: var(--danger); color: #fff; }
-kbd { font-size: 0.75em; opacity: 0.8; border: 1px solid currentColor; border-radius: 4px; padding: 0 4px; }
+button:active:not(:disabled):not(.shutter), .button:active { transform: scale(0.97); }
+.primary { background: var(--accent); color: var(--on-accent); font-weight: 600; }
+.primary:hover { box-shadow: inset 0 0 0 100px rgba(0, 0, 0, 0.12); }
+.secondary { background: var(--accent-tint); color: var(--accent); }
+.secondary:hover { box-shadow: inset 0 0 0 100px rgba(0, 76, 159, 0.08); }
+.neutral { background: var(--neutral); color: var(--text); }
+.neutral:hover { box-shadow: inset 0 0 0 100px rgba(0, 0, 0, 0.06); }
+button:disabled { opacity: 0.45; cursor: not-allowed; }
 
+/* A toggle that is on (Listen, Book mode): filled, with a check mark, not colour alone */
+button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); font-weight: 600; }
+button[aria-pressed="true"]::before {
+  content: ""; width: 1em; height: 1em; flex: none; background-color: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3 8.5l3.2 3.2L13 4.8' fill='none' stroke='%23000' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+          mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3 8.5l3.2 3.2L13 4.8' fill='none' stroke='%23000' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+/* The focus ring: thick, with a gap, never removed */
+button:focus-visible, select:focus-visible, input:focus-visible, summary:focus-visible, #answer:focus-visible,
+.button:focus-within, label.button:has(+ #upload:focus-visible) {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
+
+/* Keyboard hints: small and quiet, in the button's own text colour (so they keep its contrast) */
+kbd {
+  font: inherit; font-size: 0.72em; font-weight: 500;
+  border: 1px solid currentColor; border-radius: 6px;
+  padding: 0 0.35em; min-width: 1.5em; text-align: center; line-height: 1.45;
+}
+
+/* ---------------------------------------------------------------- inputs */
 input[type="text"] {
   flex: 1 1 240px;
-  min-height: 48px;
+  min-height: 52px;
   font: inherit;
-  padding: 8px 12px;
-  border: 2px solid var(--border);
-  border-radius: 8px;
-  background: var(--card);
+  padding: 10px 16px;
+  border: 1px solid var(--field-border);
+  border-radius: 12px;
+  background: var(--fill);
   color: var(--text);
 }
-.toggle { display: inline-flex; align-items: center; gap: 8px; }
-.toggle input { width: 22px; height: 22px; }
+input[type="text"]::placeholder { color: var(--text-2); opacity: 1; }
 
-details { margin-top: 12px; }
-pre { white-space: pre-wrap; font: inherit; font-size: 0.95rem; max-height: 260px; overflow: auto;
-      background: var(--bg); padding: 12px; border-radius: 8px; }
+select {
+  font: inherit;
+  min-height: var(--tap);
+  padding: 8px 40px 8px 16px;
+  border: 1px solid var(--field-border);
+  border-radius: 12px;
+  background: var(--fill) var(--chevron) no-repeat right 16px center;
+  color: var(--text);
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+  max-width: 100%;                /* a narrow phone or 400 % zoom: the menu shrinks instead of pushing the page sideways */
+  min-width: 0;
+}
 
-.status { color: var(--muted); margin: 0 0 8px; }
-.answer p { margin: 0 0 8px; }
-.answer .web { border-left: 4px solid var(--primary); padding-left: 10px; }
-.answer mark { background: var(--highlight); color: inherit; border-radius: 3px; }
+.toggle { display: inline-flex; align-items: center; gap: 10px; min-height: var(--tap); cursor: pointer; }
+.toggle input { width: 22px; height: 22px; margin: 0; accent-color: var(--accent); }
 
-.hint { color: var(--muted); font-size: 0.9rem; margin: 12px 0 0; }
+details { margin-top: 10px; }
+summary { display: flex; align-items: center; gap: 8px; min-height: var(--tap); cursor: pointer; border-radius: 10px; font-weight: 500;
+          list-style: none; }
+summary::-webkit-details-marker { display: none; }
+/* the open / closed chevron (the flex layout hides the browser's own triangle) */
+summary::before {
+  content: ""; width: 0.75em; height: 0.75em; flex: none; background-color: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M5.5 2.5L11 8l-5.5 5.5' fill='none' stroke='%23000' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+          mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M5.5 2.5L11 8l-5.5 5.5' fill='none' stroke='%23000' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+  transition: transform 200ms var(--ease);
+}
+details[open] > summary::before { transform: rotate(90deg); }
+#page-label { color: var(--text-2); font-weight: 400; }
+pre { white-space: pre-wrap; font: inherit; font-size: 1rem; max-height: 260px; overflow: auto; margin: 6px 0 0;
+      background: var(--page); color: var(--text); padding: 12px 14px; border-radius: 12px; }
 
-.offer { margin-top: 12px; padding: 12px; border: 2px dashed var(--primary); border-radius: 8px; }
-.offer p { margin: 0 0 8px; }
+/* ---------------------------------------------------------------- the answer */
+.status { color: var(--text-2); margin: 0 0 10px; }
+.you-said {
+  width: fit-content; max-width: 100%;
+  margin: 0 0 14px; padding: 8px 14px;
+  background: var(--chip); color: var(--text);
+  border: 1px solid transparent; border-radius: 14px;
+  font-weight: 600; overflow-wrap: anywhere;
+}
+.answer { font-size: 1.1667rem; line-height: 1.5; }           /* 21 px: the most important text on the screen */
+.answer p { margin: 0 0 0.6em; }
+.answer .web { border-left: 4px solid var(--accent); padding-left: 14px; }
+.answer mark { background: var(--mark); color: inherit; border-radius: 4px; padding: 0 0.1em; }
+
+/* "What can I say?": the voice commands, folded away until wanted */
+.hint { margin: 10px 0 0; }
+.hint summary { color: var(--accent); }
+.hint ul { margin: 4px 0 8px; padding-left: 1.4em; }
+.hint li { margin: 2px 0; }
+.hint p { color: var(--text-2); margin: 0; }
+
+.offer { margin-top: 14px; padding: 14px 16px; background: var(--accent-tint); border: 2px solid transparent; border-radius: 16px; }
+.offer p { margin: 0 0 10px; }
+.offer .row { margin-top: 0; }
+.offer .secondary { background: var(--card); }                  /* on the tinted panel, the card colour keeps it a clearly separate button */
 
 .visually-hidden {
   position: absolute !important; width: 1px; height: 1px; margin: -1px; padding: 0;
   overflow: hidden; clip: rect(0 0 0 0); border: 0;
 }
 
-.you-said { margin: 0 0 .75rem; padding: .6rem .8rem; border-left: 4px solid var(--primary); background: var(--bg); color: var(--text); border-radius: 6px; font-weight: 600; overflow-wrap: anywhere; }
-
-/* Laptop screens: everything fits in the window, nothing scrolls. The camera takes the left half and
-   shrinks to the height that is left; the answer area scrolls inside its own box if it gets long. */
+/* ---------------------------------------------------------------- laptop screens
+   Everything fits in the window, nothing scrolls. The camera takes the left half and shrinks to the height that
+   is left; the answer area scrolls inside its own box if it gets long. */
 @media (min-width: 1000px) and (min-height: 560px) {
+  :root { --tap: 44px; --radius-card: 18px; }
   html, body { height: 100%; overflow: hidden; }
-  body { display: flex; flex-direction: column; font-size: 16px; line-height: 1.4; }
-  header, main, footer { max-width: 1500px; width: 100%; }
-  header { display: flex; align-items: baseline; gap: 16px; }
-  header h1 { margin: 10px 0 6px; font-size: 1.4rem; }
+  html { font-size: 106.25%; }                                 /* 17 px at the usual 16 px */
+  body { display: flex; flex-direction: column; }
+  header { flex: none; padding: 0 24px; }
+  header h1 { line-height: 44px; font-size: 1.1rem; }
+  main, footer { max-width: 1500px; width: 100%; padding: 0 24px; }
   .tagline { display: none; }
-  footer { font-size: 0.75rem; padding-bottom: 6px; }
+  footer { flex: none; font-size: 0.8125rem; margin-top: 0; padding-top: 0; padding-bottom: 8px; }
   footer p { margin: 0; }
   main { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
-         grid-template-rows: auto minmax(0, 1fr); column-gap: 16px; }
-  main > section:nth-child(1) { grid-column: 1; grid-row: 1 / span 2; display: flex; flex-direction: column; min-height: 0; }
-  main > section:nth-child(2) { grid-column: 2; grid-row: 1; }
-  main > section:nth-child(3) { grid-column: 2; grid-row: 2; display: flex; flex-direction: column; min-height: 0; }
-  .card { margin: 0 0 10px; padding: 12px; }
-  .card h2 { margin-bottom: 8px; font-size: 1.05rem; }
-  .row { margin-top: 8px; gap: 8px; }
-  button, .button { min-height: 38px; padding: 4px 14px; }
-  input[type="text"] { min-height: 38px; }
-  .toggle input { width: 18px; height: 18px; }
+         grid-template-rows: auto minmax(0, 1fr); column-gap: 16px; padding-top: 14px; }
+  main > section:nth-of-type(1) { grid-column: 1; grid-row: 1 / span 2; display: flex; flex-direction: column; min-height: 0; }
+  main > section:nth-of-type(2) { grid-column: 2; grid-row: 1; }
+  main > section:nth-of-type(3) { grid-column: 2; grid-row: 2; display: flex; flex-direction: column; min-height: 0; }
+  .card { margin: 0 0 12px; padding: 14px 16px; }
+  .card h2 { margin-bottom: 10px; font-size: 1.05rem; }
+  .row { margin-top: 10px; gap: 8px; }
+  button, .button { padding: 6px 16px; }
+  input[type="text"] { min-height: 44px; padding: 6px 14px; }
+  select { padding-top: 6px; padding-bottom: 6px; }
   .camera { flex: 1 1 auto; min-height: 0; display: flex; justify-content: center; align-items: center; }
   .camera video, .camera #still { width: auto; height: auto; max-width: 100%; max-height: 100%; }
   pre { max-height: 90px; }
-  .hint { display: none; }
-  #answer { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
-  .you-said { margin-bottom: .4rem; padding: .4rem .6rem; }
+  details { margin-top: 4px; }
+  .hint { margin-top: 4px; }
+  #answer { flex: 1 1 auto; min-height: 0; overflow-y: auto; font-size: 1.1765rem; }    /* 20 px */
+  .you-said { margin-bottom: 10px; padding: 6px 12px; }
+  .offer { margin-top: 10px; padding: 10px 14px; }
+  .offer p { margin-bottom: 8px; }
+}
+/* A smaller laptop window: equal columns, so the Ask controls stay on two rows and the answer keeps its room */
+@media (min-width: 1000px) and (max-width: 1199px) and (min-height: 560px) {
+  main { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+}
+@media (min-width: 1000px) and (min-height: 560px) and (max-height: 720px) {
+  /* "2. Ask" and the menu share a line, "Answer" and the status share a line, the offer is one line */
+  main > section:nth-of-type(2) { display: flex; flex-wrap: wrap; align-items: center; column-gap: 16px; }
+  main > section:nth-of-type(2) > * { flex: 1 1 100%; }
+  main > section:nth-of-type(2) > h2 { flex: none; margin: 0; }
+  main > section:nth-of-type(2) > h2 + .row { flex: 1 1 auto; margin-top: 0; }
+  main > section:nth-of-type(3) { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto minmax(0, 1fr);
+                                  column-gap: 14px; align-items: baseline; }
+  main > section:nth-of-type(3) > h2 { margin: 0 0 6px; }
+  main > section:nth-of-type(3) > .status { margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }   /* full text in its tooltip */
+  main > section:nth-of-type(3) > .you-said, main > section:nth-of-type(3) > #answer { grid-column: 1 / -1; }
+  main > section:nth-of-type(3) > #answer { align-self: stretch; }
+  .offer { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+  .offer p { margin: 0; }
+  main { padding-top: 10px; }
+  .card { padding: 10px 14px; margin-bottom: 10px; }
+  .card h2 { margin-bottom: 6px; }
+  .row { margin-top: 8px; }
+  .offer { margin-top: 8px; padding: 8px 12px; }
+  .hint { display: none; }                                    /* no room on a short screen; the buttons and README list the commands */
 }
 
-select { font: inherit; padding: 6px 10px; border-radius: 6px; }
+/* A tall laptop screen has room for the one-line explanation of what the page does */
+@media (min-width: 1000px) and (min-height: 760px) {
+  .tagline { display: block; grid-column: 1 / -1; grid-row: 1; margin: 0 0 12px; }
+  main { grid-template-rows: auto auto minmax(0, 1fr); }
+  main > section:nth-of-type(1) { grid-row: 2 / span 2; }
+  main > section:nth-of-type(2) { grid-row: 2; }
+  main > section:nth-of-type(3) { grid-row: 3; }
+}
+
+/* ---------------------------------------------------------------- user preferences */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; }
+  button:active:not(:disabled):not(.shutter), .button:active { transform: none; }
+  .shutter:active { transform: translateX(-50%); }
+  /* the capture flash stays as a short fade (no movement), so a sighted user still sees the photo was taken */
+  .camera.flash::after { animation-duration: 0.2s; }
+}
+
+@media (prefers-contrast: more) {
+  :root { --text-2: var(--text); --hairline: var(--text); --card-border: var(--text); }
+  .secondary, .neutral, .offer .secondary { border-color: currentColor; }
+  input[type="text"], select, .offer, .you-said { border-color: var(--text); }
+  header { background: var(--bar-solid); -webkit-backdrop-filter: none; backdrop-filter: none; }
+  button:focus-visible, select:focus-visible, input:focus-visible, summary:focus-visible,
+  .button:focus-within, label.button:has(+ #upload:focus-visible) { outline-width: 4px; }
+}
+
+/* Windows High Contrast: the system colours take over; keep the state of toggles and the read word visible */
+@media (forced-colors: active) {
+  .card, .you-said, .offer, input[type="text"], select { border: 1px solid CanvasText; }
+  button, .button { border: 2px solid ButtonText; }
+  button[aria-pressed="true"] { forced-color-adjust: none; background: Highlight; color: HighlightText; border-color: Highlight; }
+  .answer mark { forced-color-adjust: none; background: Mark; color: MarkText; }
+  ::highlight(speaking) { background-color: Mark; color: MarkText; }
+  .settings-panel { border: 1px solid CanvasText; }
+  .answer .web { border-left-color: CanvasText; }
+  select { background-image: none; -webkit-appearance: auto; appearance: auto; padding-right: 16px; }
+  button:focus-visible, select:focus-visible, input:focus-visible, summary:focus-visible,
+  .button:focus-within, label.button:has(+ #upload:focus-visible) { outline: 3px solid Highlight; }
+  .camera { forced-color-adjust: none; }                           /* the camera picture keeps its own colours */
+  summary::before { forced-color-adjust: none; background-color: CanvasText; }
+}

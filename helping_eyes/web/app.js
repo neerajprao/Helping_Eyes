@@ -1,7 +1,7 @@
 // Helping Eyes: the browser side.
 // The browser owns the camera, the microphone and the speaker and draws the overlay.
 // Every decision (guidance hints, when to capture, page turns, what a request means,
-// the answers) is made by the server (server.py, live.py, commands.py).
+// the answers) is made by the server (server.py, vision.py, commands.py).
 
 const $ = (id) => document.getElementById(id);
 const video = $("video"), overlay = $("overlay"), grab = $("canvas"), still = $("still");
@@ -18,9 +18,35 @@ function newId() {
   (window.crypto || window.msCrypto).getRandomValues(bytes);
   return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
 }
-function setStatus(text) { statusEl.textContent = text; }
+function setStatus(text) { statusEl.textContent = text; statusEl.title = text; }      // the title: a short screen cuts the line
 function escapeHtml(s) {
   return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+// ================================================================ screen reader (Settings)
+// Two ways to hear the app. Normally the app speaks everything important with its own voice, and nothing on the page is
+// a live region, so a screen reader does not repeat it. With "My screen reader reads everything" switched on, the app's
+// voice stays quiet and everything it would say goes to the screen reader (or a braille display) through #sr-live.
+let srMode = false;
+let srBusyUntil = 0;          // screen-reader mode: when the screen reader has probably finished what it was given
+const SR_MS_PER_CHAR = 60;    // a screen reader at its usual speed, about 15 characters a second
+
+function announce(text) {
+  const box = $("sr-live");
+  const p = document.createElement("p");
+  p.textContent = text;
+  box.appendChild(p);                       // a new node in the live region is read out
+  while (box.childElementCount > 6) box.firstElementChild.remove();
+}
+
+// In screen-reader mode say() ends here: the text is handed to the screen reader, and the microphone and the camera
+// guidance wait until it has probably been read (it is heard through the same speakers)
+function srSay(text, start) {
+  announce(text);
+  if (start !== null) speechPos = start + text.length;           // book mode: the piece counts as read
+  srBusyUntil = Math.max(srBusyUntil, performance.now()) + 400 + text.length * SR_MS_PER_CHAR;
+  lastSpeechActivity = performance.now();
+  if (recognizer) recognizer.abort();
 }
 
 // ================================================================ speech out
@@ -48,7 +74,7 @@ const serverVoiceUsable = () => serverVoice || performance.now() > serverVoiceRe
 
 // A sentence that waits for the first tap (the phone blocks sound until then) is not speaking: the camera guidance
 // and the microphone must not wait for a tap
-const isSpeaking = () => (!!speakingNow || speechQueue.length > 0) && !soundBlocked;
+const isSpeaking = () => ((!!speakingNow || speechQueue.length > 0) && !soundBlocked) || performance.now() < srBusyUntil;
 
 // A number above 9999 is nearly always a serial, batch or phone number: say its digits one by one,
 // never "twelve thousand three hundred...". Comma-grouped forms (12,345,678) count too.
@@ -64,6 +90,7 @@ function spokenForm(text) {
 function say(text, { el = null, start = null, optional = false } = {}) {
   if (!text || !text.trim()) return;
   if (start !== null) start += text.length - text.trimStart().length;
+  if (srMode) return srSay(text.trim(), start);
   speechQueue.push({ text: text.trim(), el, start, audio: null, optional });
   lastSpeechActivity = performance.now();
   if (recognizer) recognizer.abort();      // the microphone must not hear the app
@@ -83,7 +110,7 @@ function speakNext() {
   prefetch();
   const finished = () => {
     if (speakingNow !== item) return;      // a stale event from a cancelled sentence
-    if (item.el) item.el.textContent = item.text;
+    if (item.el) { clearHighlight(); if (item.el.querySelector("mark")) item.el.textContent = item.text; }
     if (item.start !== null) speechPos = item.start + item.text.length;   // voices without word events
     if (item.url) URL.revokeObjectURL(item.url);
     player = null;
@@ -246,6 +273,7 @@ function playAudio(item, url, finished) {
       if (item.optional) { URL.revokeObjectURL(url); return finished(); }
       soundBlocked = () => playAudio(item, url, finished);
       setStatus("Tap the screen once to turn the voice on.");
+      announce("Tap the screen once to turn the voice on.");      // the voice cannot say this itself
       return;
     }
     item.stop = null; item.url = null; URL.revokeObjectURL(url); player = null;
@@ -253,12 +281,25 @@ function playAudio(item, url, finished) {
   });
 }
 
+// The word being spoken is highlighted with the CSS Custom Highlight API where the browser has it: the text itself is
+// never rewritten, so a screen reader's reading position in the answer is not disturbed. Older browsers get a <mark>.
+const HIGHLIGHT = !!(window.CSS && CSS.highlights && window.Highlight);
+function clearHighlight() { if (HIGHLIGHT) CSS.highlights.delete("speaking"); }
+
 // Mark the word at charIndex of the shown sentence, and move the book reading position
 function markWord(item, charIndex) {
   if (item.start !== null) speechPos = item.start + charIndex;
   if (!item.el) return;
   const t = item.text;
   const end = t.slice(charIndex).search(/\s|$/) + charIndex;
+  const node = item.el.firstChild;
+  if (HIGHLIGHT && node && node.nodeType === Node.TEXT_NODE && item.el.childNodes.length === 1 && node.data === t) {
+    const range = new Range();
+    range.setStart(node, charIndex);
+    range.setEnd(node, end);
+    CSS.highlights.set("speaking", new Highlight(range));
+    return;
+  }
   item.el.innerHTML = escapeHtml(t.slice(0, charIndex)) + "<mark>" + escapeHtml(t.slice(charIndex, end)) +
     "</mark>" + escapeHtml(t.slice(end));
 }
@@ -316,6 +357,8 @@ function silence() {
   lastSpeechActivity = performance.now();
   if (player) { player.onended = player.onerror = null; player.pause(); player = null; }
   if (synth) synth.cancel();
+  srBusyUntil = 0;
+  clearHighlight();
   answerEl.querySelectorAll("p").forEach((p) => { if (p.querySelector("mark")) p.textContent = p.textContent; });
 }
 
@@ -369,7 +412,7 @@ async function startCamera(first = true) {
     setStatus(micNote || "Camera ready. Show something to read.");
     if (first) say("System online. Show me something to read.", { optional: true });
   } catch (err) {
-    cameraUnavailable("Camera not available (" + err.name + "). Use Upload photo instead.");
+    cameraUnavailable(CAMERA_HELP[err.name] || "The camera could not start (" + err.name + "). Reload the page, or use Upload photo instead.");
   }
 }
 
@@ -381,6 +424,13 @@ function stopCamera() {
   video.srcObject = null;
 }
 
+// What each camera error means, in words that say what to do next
+const CAMERA_HELP = {
+  NotAllowedError: "The camera is blocked. Allow it with the camera icon in the address bar and reload the page, or use Upload photo instead.",
+  NotFoundError: "No camera was found. Connect one and reload the page, or use Upload photo instead.",
+  NotReadableError: "The camera is in use by another app (for example Zoom or FaceTime). Close it and reload the page, or use Upload photo instead.",
+};
+
 function cameraUnavailable(message) {
   cameraFailed = message;
   video.hidden = true;
@@ -389,6 +439,7 @@ function cameraUnavailable(message) {
   $("camera-message").textContent = message;
   $("capture").disabled = true;
   setStatus(message);
+  say(message);
 }
 
 // A JPEG of the current camera frame, scaled so its longer side is at most maxSide
@@ -411,13 +462,29 @@ let awaiting = false;         // a frame was sent and its reply has not arrived
 let sentAt = 0;
 let guide = null;             // latest reply, normal mode
 let bookState = null;         // latest reply, book mode
+let liveFailures = 0;         // connection attempts in a row that failed
+let liveLost = false;         // "Lost the connection" has been said
 
 function connectLive() {
   const url = `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws/live?sid=${sid}`;
   ws = new WebSocket(url);
-  ws.onopen = () => { awaiting = false; ws.send(JSON.stringify({ type: "mode", mode })); };
+  ws.onopen = () => {
+    awaiting = false;
+    ws.send(JSON.stringify({ type: "mode", mode }));
+    if (liveLost) { liveLost = false; setStatus("Connected to the server again."); say("Connected again."); }
+    liveFailures = 0;
+  };
   ws.onmessage = (e) => { awaiting = false; onLiveReply(JSON.parse(e.data)); };
-  ws.onclose = () => { ws = null; awaiting = false; setTimeout(connectLive, 1500); };
+  ws.onclose = () => {
+    ws = null; awaiting = false;
+    // Said once, after a few tries in a row have failed, so a blind user knows why the guidance went quiet
+    if (++liveFailures === 3 && !liveLost) {
+      liveLost = true;
+      setStatus("Lost the connection to the server. Trying again… (check that it is still running)");
+      say("Lost the connection to the server. I'll keep trying.");
+    }
+    setTimeout(connectLive, 1500);
+  };
   ws.onerror = () => ws && ws.close();
 }
 
@@ -464,6 +531,21 @@ async function failure(res) {
   return "The server answered with an error (" + res.status + "). Try again.";
 }
 
+// The message of a failed request for the status line: a request that never reached the server says so plainly
+// instead of the browser's "Failed to fetch"
+function problem(err) {
+  if (err instanceof TypeError) return "Can't reach the Helping Eyes server. It may have stopped or lost its connection; try again in a moment.";
+  return err.message;
+}
+
+// Hide the "look it up online?" offer. If the keyboard focus was on one of its buttons, it moves to the question box
+// instead of falling back to the top of the page.
+function hideOffer() {
+  const offer = $("offer");
+  if (offer.contains(document.activeElement)) $("question").focus();
+  offer.hidden = true;
+}
+
 // ================================================================ capture (normal mode)
 function showCaptured(data) {
   $("captured").hidden = false;
@@ -496,10 +578,11 @@ async function autoCapture() {
       say(data.message);
     } else {
       setStatus(data.message);
+      say(data.message);
     }
   } catch (err) {
-    setStatus("Could not read the photo: " + err.message);
-    say("Could not read the text. Try again.");
+    setStatus("Could not read the photo: " + problem(err));
+    say(err instanceof TypeError ? problem(err) : "Could not read the text. Try again.");
   }
   wsSend({ type: "capture_result", ok });
   paused = false;
@@ -525,7 +608,7 @@ function showShutter() {                                       // only while the
 let capturing = false;                                         // a photo is being read: a second press must wait
 $("capture").addEventListener("click", async () => {
   if (uploadView && mode === "book") return handleBookEvent("changed");
-  if (!uploadView && !video.videoWidth) return setStatus("The camera is not ready yet.");
+  if (!uploadView && !video.videoWidth) { setStatus("The camera is not ready yet."); return say("The camera is not ready yet."); }
   if (mode === "book") return handleBookEvent("changed");
   if (capturing) return;
   capturing = true;
@@ -545,8 +628,8 @@ $("capture").addEventListener("click", async () => {
     if (ok) { showCaptured(data); checkQuality(); } else if (capturedStill) backToCamera();    // nothing read: try again
     say(data.message);
   } catch (err) {
-    setStatus("Could not read the photo: " + err.message);
-    say("Sorry, I could not read the photo.");
+    setStatus("Could not read the photo: " + problem(err));
+    say(err instanceof TypeError ? problem(err) : "Sorry, I could not read the photo.");
     if (capturedStill) backToCamera();
   }
   wsSend({ type: "capture_result", ok });
@@ -588,9 +671,8 @@ async function checkQuality() {
 function drawPhotoQuality(ctx, W, H, bottom) {
   const q = photoQuality;
   if (!q) return;
-  ctx.font = "13px sans-serif";
-  ctx.fillStyle = q.problems.length ? "#ff3030" : COLORS.idle;
-  ctx.fillText(q.quality + (q.hint ? "   " + q.hint : ""), (30 / 1280) * W + 10, bottom);
+  plateText(ctx, q.quality + (q.hint ? "   " + q.hint : ""), (30 / 1280) * W + 14, bottom,
+            q.problems.length ? COLORS.problem : COLORS.idle, "13px sans-serif");
 }
 
 function backToCamera() {
@@ -633,8 +715,8 @@ $("upload").addEventListener("change", async (e) => {
     say((intro ? intro + ". " : "") + data.message);
     $("question").focus();
   } catch (err) {
-    setStatus("Could not read the photo: " + err.message);
-    say("Sorry, I could not read the photo.");
+    setStatus("Could not read the photo: " + problem(err));
+    say(err instanceof TypeError ? problem(err) : "Sorry, I could not read the photo.");
   }
 });
 
@@ -712,7 +794,7 @@ async function handleBookEvent(event) {
     if (r.action === "new" || r.action === "resume") {
       pageText = r.text; pageLayout = r.layout; pageLabel = r.label || "";
       answerEl.innerHTML = "";
-      $("offer").hidden = true;
+      hideOffer();
       showCaptured({ text: r.text, label: r.label });
       stopSpeaking();
       if (r.action === "new") {
@@ -735,7 +817,8 @@ async function handleBookEvent(event) {
     }
     // "keep": the same page barely moved while reading: nothing changes
   } catch (err) {
-    setStatus("Could not read the page: " + err.message);
+    setStatus("Could not read the page: " + problem(err));
+    say("Could not read the page. " + problem(err));
   } finally {
     bookBusy = false;
     paused = false;
@@ -754,7 +837,7 @@ async function ask(text) {
   text = (text || "").trim();
   if (!text) return;
   stopSpeaking();
-  $("offer").hidden = true;
+  hideOffer();
   showYouSaid(text);
   answerEl.innerHTML = "";
   lastSentences = [];
@@ -786,8 +869,8 @@ async function ask(text) {
     }
   } catch (err) {
     if (err.name !== "AbortError") {
-      setStatus("Something went wrong: " + err.message);
-      say("Sorry, something went wrong.");
+      setStatus(err instanceof TypeError ? problem(err) : "Something went wrong: " + err.message);
+      say(err instanceof TypeError ? problem(err) : "Sorry, something went wrong. " + err.message);
     }
   } finally {
     if (controller === mine) { controller = null; thinking = false; }
@@ -798,7 +881,7 @@ function onAskEvent(ev, started, wasShown, markShown) {
   if (ev.type === "sentence") {
     if (!wasShown()) {
       markShown();
-      setStatus(`Answering (first sentence after ${((performance.now() - started) / 1000).toFixed(1)} s)…`);
+      setStatus("Answering…");
     }
     const p = document.createElement("p");
     p.textContent = ev.text;
@@ -830,7 +913,7 @@ $("stop").addEventListener("click", stopSpeaking);
 $("newitem").addEventListener("click", () => ask("next"));
 $("bookmode").addEventListener("click", () => ask(mode === "book" ? "normal mode" : "book mode"));
 $("offer-yes").addEventListener("click", () => ask("yes"));
-$("offer-no").addEventListener("click", () => { $("offer").hidden = true; ask("no"); });
+$("offer-no").addEventListener("click", () => { hideOffer(); ask("no"); });
 
 // ================================================================ speech in (hands-free)
 const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -856,22 +939,23 @@ function micIsOpen() {
 
 function renderMic() {
   const open = micIsOpen();
+  // The name stays "Listen"; the pressed state (a filled button with a check mark) says whether the microphone is open
   $("mic").setAttribute("aria-pressed", String(open));
-  $("mic").firstChild.textContent = open ? "Stop listening " : "Listen ";
   $("mic").title = listening && !open ? "Listening is on and resumes when the app stops talking. Press to stop talking and listen now." : "";
 }
 
-function setListening(on) {
+function setListening(on, quiet = false) {
   listening = on;
   micFailures = 0;
   renderMic();
   setStatus(on ? "Listening. Ask a question, or say a command." : "Listening is off.");
+  if (!quiet) say(on ? "Listening." : "Listening is off.");
   if (!on && recognizer) recognizer.abort();
 }
 
 // Listening cannot work: switch it off and say why (spoken too, for someone who cannot read the screen)
 function micProblem(message) {
-  setListening(false);
+  setListening(false, true);
   setStatus(message);
   say(message);
 }
@@ -932,7 +1016,7 @@ function listenTick() {
     }
     const text = parts.join(" ");
     const result = results[results.length - 1];
-    if (!result.isFinal) { showYouSaid(text + "…"); return setStatus("Hearing: " + text + "…"); }
+    if (!result.isFinal) return showYouSaid(text + "…");     // shown as it is heard; nothing is announced yet
     micFailures = 0;
     setStatus("Heard: " + text);
     ask(text);
@@ -954,16 +1038,66 @@ $("model").addEventListener("change", () => {
   setStatus("Answers now come from " + $("model").selectedOptions[0].textContent.replace(/ \(.*/, "") + ".");
 });
 
+// ================================================================ settings
+const SHORTCUTS = { c: "capture", r: "newitem", b: "bookmode", a: "read-all", p: "repeat", s: "stop", m: "mic" };
+let shortcutsOn = true;
+function stored(name, fallback) { try { const v = localStorage.getItem(name); return v === null ? fallback : v === "1"; } catch (err) { return fallback; } }
+function store(name, on) { try { localStorage.setItem(name, on ? "1" : "0"); } catch (err) { /* storage blocked */ } }
+
+function applySettings() {
+  srMode = $("sr-mode").checked;
+  shortcutsOn = $("shortcuts").checked;
+  // Without single-key shortcuts the key hints and aria-keyshortcuts go too, so nothing promises a key that does nothing
+  document.body.classList.toggle("no-shortcuts", !shortcutsOn);
+  for (const [key, id] of Object.entries(SHORTCUTS)) {
+    if (shortcutsOn) $(id).setAttribute("aria-keyshortcuts", key.toUpperCase()); else $(id).removeAttribute("aria-keyshortcuts");
+  }
+}
+$("sr-mode").checked = stored("srMode", false);
+$("shortcuts").checked = stored("shortcuts", true);
+applySettings();
+$("sr-mode").addEventListener("change", () => {
+  store("srMode", $("sr-mode").checked);
+  silence();
+  applySettings();
+  say(srMode ? "Your screen reader now reads everything. The app's voice is off." : "The app's voice is on again.");
+});
+$("shortcuts").addEventListener("change", () => {
+  store("shortcuts", $("shortcuts").checked);
+  applySettings();
+  setStatus(shortcutsOn ? "Single-key shortcuts are on." : "Single-key shortcuts are off. Use Tab and the buttons.");
+});
+
 // ================================================================ keyboard
 document.addEventListener("keydown", (e) => {
-  if (e.target.tagName === "INPUT" || e.metaKey || e.ctrlKey || e.altKey) return;
-  const actions = { c: "capture", r: "newitem", b: "bookmode", a: "read-all", p: "repeat", s: "stop", m: "mic" };
-  const id = actions[e.key.toLowerCase()];
+  // never while typing or choosing: a letter typed in the question box or the menu is not a shortcut
+  const t = e.target;
+  if (!shortcutsOn || ["INPUT", "SELECT", "TEXTAREA"].includes(t.tagName) || t.isContentEditable || e.metaKey || e.ctrlKey || e.altKey) return;
+  const id = SHORTCUTS[e.key.toLowerCase()];
   if (id && !$(id).disabled) { e.preventDefault(); $(id).click(); }
 });
 
 // ================================================================ overlay
-const COLORS = { idle: "#b4b4b4", detect: "#ffc800", hold: "#ffa500", ready: "#00ff00", line: "#0064ff" };
+// Overlay palette. Labels sit on a dark plate (PLATE), so each one is readable on any camera picture: measured on the
+// plate over a white page, idle 8.3:1, detect 9.0:1, hold 6.2:1, ready 6.3:1, problem 5.6:1, white 12.6:1.
+const COLORS = { idle: "#d1d1d6", detect: "#ffd60a", hold: "#ff9f0a", ready: "#30d158", line: "#64d2ff",
+                 problem: "#ff8a84", text: "#ffffff", gutter: "#ffd60a", margin: "#bf5af2", column: "#64d2ff",
+                 block: "#30d158", badge: "#004c9f", reading: "rgba(255, 214, 10, 0.35)", word: "#ff9f0a" };
+const PLATE = "rgba(0, 0, 0, 0.8)";
+
+// Text on a rounded dark plate (x, y: the text's baseline start)
+function plateText(ctx, text, x, y, color, font) {
+  ctx.font = font;
+  const m = ctx.measureText(text);
+  const up = m.actualBoundingBoxAscent || 16, down = m.actualBoundingBoxDescent || 4, padX = 8, padY = 5;
+  ctx.fillStyle = PLATE;
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(x - padX, y - up - padY, m.width + 2 * padX, up + down + 2 * padY, 8);
+  else ctx.rect(x - padX, y - up - padY, m.width + 2 * padX, up + down + 2 * padY);
+  ctx.fill();
+  ctx.fillStyle = color;
+  ctx.fillText(text, x, y);
+}
 
 function sizeOverlay() {
   const dpr = window.devicePixelRatio || 1;
@@ -1004,7 +1138,7 @@ function drawGuideBox(ctx, W, H, color, label) {
     ctx.beginPath(); ctx.moveTo(x + dx * c, y); ctx.lineTo(x, y); ctx.lineTo(x, y + dy * c); ctx.stroke();
   }
   ctx.lineWidth = 1; ctx.strokeRect(mx, my, W - 2 * mx, H - 2 * my);
-  if (label) { ctx.fillStyle = color; ctx.font = "bold 22px sans-serif"; ctx.fillText(label, mx + 10, my + 32); }
+  if (label) plateText(ctx, label, mx + 16, my + 36, color, `bold ${W < 640 ? 15 : 22}px sans-serif`);
 }
 
 function drawNormal(ctx, W, H) {
@@ -1027,9 +1161,8 @@ function drawNormal(ctx, W, H) {
                   ADJUST: COLORS.detect }[guide.state] || COLORS.idle;
   const label = guide.state === "CAPTURED" ? "CAPTURED - ASK ME   R = new item   A = read all" : guide.label;
   drawGuideBox(ctx, W, H, color, label);
-  ctx.font = "13px sans-serif";
-  ctx.fillStyle = guide.problems.length ? "#ff3030" : COLORS.idle;
-  ctx.fillText(guide.quality, (30 / 1280) * W + 10, H - (20 / 720) * H - 12);
+  plateText(ctx, guide.quality, (30 / 1280) * W + 14, H - (20 / 720) * H - 14,
+            guide.problems.length ? COLORS.problem : COLORS.idle, "13px sans-serif");
 }
 
 function lineAt(pos) {
@@ -1040,19 +1173,19 @@ function drawBook(ctx, W, H) {
   const turning = !uploadView && (!bookState || bookState.state === "TURNING");
   if (pageLayout && !turning) {
     const L = pageLayout;
-    if (L.gutter) { ctx.strokeStyle = "#ffff00"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(L.gutter * W, 0); ctx.lineTo(L.gutter * W, H); ctx.stroke(); }
-    ctx.strokeStyle = "#c800c8"; ctx.lineWidth = 1;
+    if (L.gutter) { ctx.strokeStyle = COLORS.gutter; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(L.gutter * W, 0); ctx.lineTo(L.gutter * W, H); ctx.stroke(); }
+    ctx.strokeStyle = COLORS.margin; ctx.lineWidth = 1;
     outlines(ctx, L.margin_quads, L.margins, W, H, 3);
-    ctx.strokeStyle = "#0078ff";
+    ctx.strokeStyle = COLORS.column;
     if (L.column_quads && L.column_quads.length) L.column_quads.forEach((q) => poly(ctx, q, W, H));
     else for (const b of L.columns) rect(ctx, [b[0], 20 / 720, b[2], 1 - 20 / 720], W, H);
     L.blocks.forEach((b, i) => {
-      ctx.strokeStyle = "#00c800"; ctx.lineWidth = 2;
+      ctx.strokeStyle = COLORS.block; ctx.lineWidth = 2;
       const quad = L.block_quads && L.block_quads[i];
       if (quad) poly(ctx, quad, W, H); else rect(ctx, b, W, H);
       const bx = Math.max(14, (quad ? Math.min(...quad.map((p) => p[0])) : b[0]) * W - 20),
             by = (quad ? Math.min(...quad.map((p) => p[1])) : b[1]) * H + 12;
-      ctx.fillStyle = "#dc0000"; ctx.beginPath(); ctx.arc(bx, by, 14, 0, 7); ctx.fill();
+      ctx.fillStyle = COLORS.badge; ctx.beginPath(); ctx.arc(bx, by, 14, 0, 7); ctx.fill();
       ctx.fillStyle = "#fff"; ctx.font = "bold 15px sans-serif"; ctx.textAlign = "center";
       ctx.fillText(String(i + 1), bx, by + 5); ctx.textAlign = "left";
     });
@@ -1060,18 +1193,18 @@ function drawBook(ctx, W, H) {
     const pos = speechPos;
     const span = pos === null ? null : lineAt(pos);
     if (span) {
-      ctx.fillStyle = "rgba(255,255,0,0.3)";
+      ctx.fillStyle = COLORS.reading;
       if (span.quad) poly(ctx, span.quad, W, H, true);
       else ctx.fillRect(span.box[0] * W - 4, span.box[1] * H - 3, (span.box[2] - span.box[0]) * W + 8, (span.box[3] - span.box[1]) * H + 6);
       const word = span.words.find((w) => pos < w[1]);
-      if (word) { ctx.strokeStyle = "#ff7800"; ctx.lineWidth = 2; if (word[3]) poly(ctx, word[3], W, H); else rect(ctx, word[2], W, H, 3); }
+      if (word) { ctx.strokeStyle = COLORS.word; ctx.lineWidth = 2; if (word[3]) poly(ctx, word[3], W, H); else rect(ctx, word[2], W, H, 3); }
     }
   }
   const bar = 40;
   if (uploadView) drawPhotoQuality(ctx, W, H, H - bar - 10);
-  ctx.fillStyle = "#282828"; ctx.fillRect(0, H - bar, W, bar);
+  ctx.fillStyle = PLATE; ctx.fillRect(0, H - bar, W, bar);
   const s = bookState;
-  ctx.fillStyle = "#00ffff"; ctx.font = "bold 16px sans-serif";
+  ctx.fillStyle = COLORS.text; ctx.font = "bold 16px sans-serif";
   ctx.fillText(`BOOK MODE   ${pageLabel || "Page -"}   ${bookBusy ? "READING PAGE..." : uploadView ? "UPLOADED PHOTO" : s ? s.state : "WAITING"}   ` +
     (s && !uploadView ? `motion ${s.motion} (still < ${s.still_below})   ` : "") + "B = exit", 15, H - 14);
 }
