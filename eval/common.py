@@ -6,16 +6,20 @@ Shared helpers for the evaluation scripts (run_qa.py, run_expiry.py, run_latency
     EVAL_DATE, so prompts, date checks and verdicts come from the app's own code but never change with the calendar
   * ask(): one question through the app's own path (commands.classify -> fresh DocAssistant -> ask), timed, with the
     retry rule of the plan for a busy hosted model (503 / 429: up to 3 retries, 30 s apart, every retry logged; a call
-    that still fails is a *service error*, reported apart and never scored as a wrong answer)
+    that still fails is a *service error*, reported apart and never scored as a wrong answer; a reply that has not
+    finished after CALL_LIMIT seconds counts as a failed call too)
   * bootstrap confidence intervals over photos, git state, JSON in and out
 """
 
+import contextlib
 import datetime
 import json
 import os
 import random
+import signal
 import subprocess
 import sys
+import threading
 import time
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -75,6 +79,28 @@ def service_messages():
 
 
 _last_gemini = [0.0]
+CALL_LIMIT = 90        # seconds; a hosted stream that never ends (seen under Gemini's 503 load) counts as a service error
+
+
+class _Hung(Exception):
+    pass
+
+
+@contextlib.contextmanager
+def _deadline(seconds):
+    """Raise _Hung in the main thread after `seconds` (SIGALRM); a no-op elsewhere."""
+    if threading.current_thread() is not threading.main_thread():
+        yield
+        return
+    def fire(*_):
+        raise _Hung()
+    old = signal.signal(signal.SIGALRM, fire)
+    signal.alarm(seconds)
+    try:
+        yield
+    finally:
+        signal.alarm(0)
+        signal.signal(signal.SIGALRM, old)
 
 
 def ask(question, document, provider, facts="", page_label="", log=print):
@@ -101,16 +127,21 @@ def ask(question, document, provider, facts="", page_label="", log=print):
         doc.set_provider(provider)
         doc.set_document(document, facts, page_label)
         started, first, parts = time.perf_counter(), None, []
-        for s in doc.ask(cmd.query):
-            if first is None:
-                first = time.perf_counter() - started
-            if s == assistant.READ_ALL:
-                parts = [document]
-                break
-            parts.append(s)
+        hung = False
+        with _deadline(CALL_LIMIT):
+            try:
+                for s in doc.ask(cmd.query):
+                    if first is None:
+                        first = time.perf_counter() - started
+                    if s == assistant.READ_ALL:
+                        parts = [document]
+                        break
+                    parts.append(s)
+            except _Hung:
+                hung = True
         total = time.perf_counter() - started
-        answer = " ".join(parts)
-        if answer in failures:
+        answer = f"no reply finished within {CALL_LIMIT} s" if hung else " ".join(parts)
+        if hung or answer in failures:
             if retries < RETRIES:
                 retries += 1
                 log(f"    service error ({answer[:60]}), retry {retries}/{RETRIES} in {RETRY_PAUSE} s")

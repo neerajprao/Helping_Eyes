@@ -323,7 +323,7 @@ The real-world evaluation lives in `eval/` and writes its results to [markdown/e
 .venv/bin/python eval/make_results.py                             # writes markdown/eval_results.md
 ```
 
-Every script resumes where it stopped, and the Gemini runs retry a busy service and stop by themselves when the free daily limit is used up.
+Every script resumes where it stopped, and the Gemini runs retry a busy service (a reply not finished within 90 s counts as busy too) and stop by themselves when the free daily limit is used up. Keep the Mac on its charger with the lid open during long runs: a sleeping Mac freezes them.
 
 ---
 
@@ -470,7 +470,7 @@ The principal benefits of book mode are hands-free page turning, identification 
 
 ## Performance
 
-Everything below was measured on 28 October 2026 with the scripts in `eval/` (see [Evaluation](#evaluation)) on an Apple M3 Pro MacBook (18 GB), answers checked against a fixed date (19 October 2026). The full tables, with 95 % confidence intervals and every target of the course requirements marked met or not met, are in **[markdown/eval_results.md](markdown/eval_results.md)**; this section is a summary of it.
+Everything below was measured on 28–29 October 2026 with the scripts in `eval/` (see [Evaluation](#evaluation)) on an Apple M3 Pro MacBook (18 GB), answers checked against a fixed date (19 October 2026). The full tables, with 95 % confidence intervals and every target of the course requirements marked met or not met, are in **[markdown/eval_results.md](markdown/eval_results.md)**; this section is a summary of it.
 
 **How the answers were checked.** The reference for every photo is Claude's own reading of it (the key printed lines, the details such as name, dates, batch and price, and for the non-medicine photos the questions with their expected answers), written before any reader's output was seen. It is one careful reader, not a typed ground truth checked by a second person. Factual answers are scored by fixed rules (tested in `eval/test_scoring.py`); free-text answers by a blind A/B judgement of a random sample.
 
@@ -489,19 +489,19 @@ Printed documents, screens and book pages are read almost perfectly (96–100 %)
 
 ### Answers: Gemini Flash-Lite against Qwen 2.5 3B
 
-The same questions about the same 46 photos (30 pharmacy photos chosen at random within each lighting and angle group, plus all 16 others) were asked to both models through the app's own code. Gemini's free daily limit ran out after 20 of the photos, so the comparison below is on those (the rest is run the next day; `eval_results.md` always has the latest numbers).
+The same questions about the same 46 photos (30 pharmacy photos chosen at random within each lighting and angle group, plus all 16 others) were asked to both models through the app's own code (708 questions each; Gemini's free tier was busy, so its run took two days and 54 retries, with no question left unanswered).
 
 | | Gemini Flash-Lite | Qwen 2.5 3B (on this Mac) |
 |---|---|---|
-| Factual answers right (name, strength, quantity, dates, batch, price, maker) | **87.2 %** | 64.5 % (all 46 photos) |
-| … when the value was in the text the model got | 90.8 % | 57.4 % |
-| Says "the text doesn't say" when the photo really doesn't (target ≥ 90 %) | 92.7 % | 93.9 % |
-| Says "the text doesn't say" although it does | 6.6 % | 26.0 % |
-| Answers with a number that is not in the text | 1.8 % | 0.6 % |
-| Free-text answers (use, storage, warnings ...), blind sample of 100 | 98 % right, 2 % unsupported | 81 % right, 12 % partial, 7 % wrong |
-| First sentence of the answer, median / 90th percentile | 3.2 s / 16.5 s (busy free tier) | 0.45 s / 1.1 s |
+| Factual answers right (name, strength, quantity, dates, batch, price, maker) | **80.0 %** (95 % interval 75–85) | 64.5 % (57–71) |
+| … when the value was in the text the model got | 82.2 % | 57.4 % |
+| Says "the text doesn't say" when the photo really doesn't (target ≥ 90 %) | 93.9 % | 93.9 % |
+| Says "the text doesn't say" although it does | 12.4 % | 26.0 % |
+| Answers with a number that is not in the text | 1.7 % | 0.6 % |
+| Free-text answers (use, storage, warnings ...), blind sample of 100 from the first 20 photos | 98 % right, 2 % unsupported | 81 % right, 12 % partial, 7 % wrong |
+| First sentence of the answer, median / 90th percentile | 3.1 s / 17.7 s (busy free tier) | 0.45 s / 1.1 s |
 
-On the questions both answered, Gemini is right 16 points more often (95 % interval 9 to 25 points). Qwen's main weakness is saying a detail is missing when it is printed, often because the value sits a row away from its label. Neither model reached the requirement's 90 % on factual questions; most of the remaining misses come from the reading itself (a value the OCR missed or garbled can only be right if the model repairs it: Gemini 41 %, Qwen 7 %).
+On the same 355 factual questions Gemini is right 15 points more often (95 % interval 11 to 21 points; Gemini alone right on 65, Qwen alone on 10). Qwen's main weakness is saying a detail is missing when it is printed, often because the value sits a row away from its label. Neither model reached the requirement's 90 % on factual questions; many of the remaining misses come from the reading itself (a value the OCR missed or garbled can only be right if the model repairs it: Gemini 28 %, Qwen 7 %).
 
 ### Expiry dates
 
@@ -527,11 +527,13 @@ All 8 web answers started with "According to the web", all 3 health answers ende
 | Capture of a label (1920 px photo → text) | 0.29 s | 0.47 s |
 | Live frame round trip (960 px) | 0.11 s | 0.14 s |
 | Question → start of the spoken answer, Qwen (first sentence + its Kokoro audio) | 1.37 s | 1.89 s |
+| Question → start of the spoken answer, Gemini (free tier under heavy load) | 9.8 s | 103 s |
 | Kokoro voice for one sentence | 1.30 s | 1.33 s |
 | Book page with Qwen grouping the paragraphs | 5.8 s | 6.1 s |
+| Book page with Gemini grouping the paragraphs | 3.8 s | 12.5 s |
 | "Read everything", page-number answers | immediate (no model) | |
 
-The page waits 100 ms after each live reply, so the live check runs about 4.8 times a second (the server alone could take 9.3), below the requirement's 10. Gemini's timings are added to `eval_results.md` with the rest of its run.
+The page waits 100 ms after each live reply, so the live check runs about 4.8 times a second (the server alone could take 9.3), below the requirement's 10. Gemini was measured while Google's free tier kept answering "high demand" (HTTP 503): a reply came back in about 2 s or stalled for up to two minutes, so its times say more about that day's load than about the app. Only Qwen meets the 2-second target.
 
 ### Book mode on a real book
 
@@ -587,6 +589,7 @@ A custom OpenCV pipeline detects page turns, splits two-page spreads, orders col
 - **Glare coaching misses shiny packs:** the glare check looks for pure-white patches, so the reflections on foil strips, gold cartons, glossy bottles and screens (bright, but not pure white) produce no "Glare" hint; in 164 real photos it never fired.
 - **Labels laid out in two columns:** when a batch number, date or price is printed a row above or below its label, or coded with symbols (`#` made, `@` use before), the language model can pair the wrong value with a label or not find it.
 - **Web lookups:** only the search query (the question and the product name) leaves the device; the captured text is not sent. Answers depend on the quality of search results: in the evaluation, when the results were about a different company, the model reported them as facts about the user's item instead of saying the results did not answer. Lookups are never offered for expiry, batch or price ("When was it manufactured?" still is).
+- **A stalled hosted answer:** when Gemini's free tier is overloaded, a streamed reply can start and then stop sending without closing. The app's 120-second timeout only counts silence between pieces, so the user may wait up to two minutes or more with no answer (the evaluation stops its own calls after 90 s). Qwen on this Mac does not have this problem.
 - **Book mode:** on a real book photographed on a patterned bedspread, the spine of a two-page spread was not found (0 of 4 spreads), so the page numbers were not announced and the two pages were read as one wide page (in the right order); on synthetic spreads it works. A page-turn read can start while the hand is still turning the page. Qwen 3B is too slow to group the paragraphs of a dense page within 12 seconds, so such pages are read in layout order. Strong page curvature, uneven lighting, fingers over the text and illustrations near the centre of a spread can affect spine and column detection. Motion blur prevents recognition, so the book should be held steady or placed on a surface. When the view moves while a page is being read, a few words may be repeated, because the reading position is sent to the server before the new view has been recognised.
 - **Model accuracy:** although the model is restricted to the captured text, a small model can still misread or confuse details. Medically important information should be confirmed with a pharmacist or doctor.
 - **One reader:** the earlier standalone Gemini reader (which read all text aloud with no questions) was removed; "read everything" does the same without a cloud API.

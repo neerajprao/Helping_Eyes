@@ -1,6 +1,6 @@
 # Resume bullets: Helping Eyes
 
-Every number here comes from [eval_results.md](eval_results.md) (measured 28 October 2026). If a number there changes,
+Every number here comes from [eval_results.md](eval_results.md) (measured 28–29 October 2026). If a number there changes,
 change it here too. Pick 3–4 bullets; the short versions fit one line.
 
 **Helping Eyes — a camera reading assistant for visually impaired people** (Python, FastAPI, Apple Vision, OpenCV,
@@ -20,9 +20,9 @@ Gemini / Qwen 2.5 3B via Ollama, Kokoro TTS, JavaScript)
   *Short:* Code-computed expiry checks: 22/22 correct vs 5/22 for the LLM alone.
 
 - Compared Gemini Flash-Lite with a local Qwen 2.5 3B on the same photos with paired bootstrap confidence intervals:
-  87.2 % vs 64.5 % factual accuracy (+16 points paired, 95 % CI 9–25), both reporting missing details correctly over
-  92 % of the time, with numbers not in the text in under 2 % of answers.
-  *Short:* Paired LLM comparison: Gemini 87 % vs Qwen 3B 65 % factual accuracy, under 2 % unsupported numbers.
+  80.0 % vs 64.5 % factual accuracy on 708 questions each (+15 points paired, 95 % CI 11–21), both reporting missing
+  details correctly 94 % of the time, with numbers not in the text in under 2 % of answers.
+  *Short:* Paired LLM comparison: Gemini 80 % vs Qwen 3B 65 % factual accuracy, under 2 % unsupported numbers.
 
 - Built book mode with classical computer vision: page-turn detection by frame differencing, spine splitting,
   page-number and running-title detection, XY-cut reading order (98 % of line pairs in order on real pages) and a

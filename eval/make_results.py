@@ -112,8 +112,9 @@ def main():
         for m in ("gemini", "qwen3b"):
             d, t = o.get(f"first_word_{m}"), o.get(f"ask_first_{m}")
             if d:
+                within = f"; {sum(x <= 2.0 for x in d['values'])}/{d['n']} within 2 s, range {sec(d['min'])}–{sec(d['max'])}" if d.get("values") else ""
                 L.append(f"| Question to the start of the spoken answer, p90 (NFR-1), {NAMES[m]} | ≤ 2.0 s | {sec(d['p90'])} "
-                         f"(p50 {sec(d['p50'])}; text of the first sentence alone: p90 {sec(t['p90'])}), n = {d['n']} | {met(d['p90'] <= 2.0)} |")
+                         f"(p50 {sec(d['p50'])}; text of the first sentence alone: p90 {sec(t['p90'])}{within}), n = {d['n']} | {met(d['p90'] <= 2.0)} |")
         L.append(f"| Capture, p90 (NFR-1) | ≤ 0.5 s | {sec(o['capture']['p90'])} (p50 {sec(o['capture']['p50'])}) | {met(o['capture']['p90'] <= 0.5)} |")
         page_rate = round(1 / (PAGE_PAUSE + o["live_label"]["p50"]), 1)
         L.append(f"| Live detection rate (NFR-1) | ≥ 10 checks/s | {page_rate} checks/s as the page sends frames (it waits "
@@ -123,9 +124,13 @@ def main():
         p = book["pages"]
         L.append(f"| Page numbers on real book photos (FR-10) | ≥ 90 % | {p['page_numbers']['yes']}/{p['page_numbers']['of']} | "
                  f"{met(p['page_numbers']['rate'] is not None and p['page_numbers']['rate'] >= 0.9)} |")
-        o = p["order_arranged_qwen3b"]
-        L.append(f"| Reading order on real book photos (FR-9), pairs of key lines in order | ≥ 90 % | layout {pct(p['order_layout']['rate'])}, "
-                 f"with the model's paragraphs {pct(o['rate'])} | {met(o['rate'] is not None and o['rate'] >= 0.9)} |")
+        # what book mode reads: the model's paragraphs where it grouped them in time, the layout order elsewhere
+        read = [r["arranged"] or r["layout"] for r in p["rows"]]
+        pairs = sum(x["pairs"] for x in read)
+        rate = sum(x["pairs_in_order"] for x in read) / pairs if pairs else None
+        L.append(f"| Reading order on real book photos (FR-9), pairs of key lines in order | ≥ 90 % | {pct(rate)} as book mode reads "
+                 f"(layout {pct(p['order_layout']['rate'])}, with the model's paragraphs {pct(p['order_arranged_qwen3b']['rate'])}) | "
+                 f"{met(rate is not None and rate >= 0.9)} |")
     if book and book.get("video"):
         v = book["video"]
         ok = v["pages_expected"] - v["missed"]
@@ -275,6 +280,10 @@ def main():
             d = o.get(k)
             if d:
                 L.append(f"| {label} | {sec(d['p50'])} | {sec(d['p90'])} | {sec(d['p95'])} | {sec(d['mean'])} |")
+        if o.get("first_word_gemini"):
+            L += ["", "Gemini's times depend on the load of Google's free tier, not on this Mac: the Gemini runs were made "
+                  "while it was often answering HTTP 503 \"model is currently experiencing high demand\", and a reply then "
+                  "either came back in about 2 s or stalled for up to two minutes. They are reported as measured."]
 
     # ---------------------------------------------------------------- book
     if book:

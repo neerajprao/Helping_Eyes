@@ -70,7 +70,7 @@
   "qwen3b": "qwen2.5:3b-instruct"
  },
  "temperature": 0.2,
- "commit": "7e36162",
+ "commit": "4c4d9b1",
  "dirty": true,
  "by_model": {
   "qwen3b": {
@@ -264,152 +264,207 @@
    }
   },
   "gemini": {
-   "answered": 405,
-   "service_errors": 5,
-   "retries": 42,
+   "answered": 708,
+   "service_errors": 0,
+   "retries": 54,
    "accuracy": {
-    "correct": 156,
-    "scored": 179,
-    "accuracy": 0.8715,
+    "correct": 284,
+    "scored": 355,
+    "accuracy": 0.8,
     "ci95": [
-     0.7929,
-     0.9355
+     0.7471,
+     0.8486
     ]
    },
    "accuracy_pharmacy": {
-    "correct": 156,
-    "scored": 179,
-    "accuracy": 0.8715,
+    "correct": 214,
+    "scored": 260,
+    "accuracy": 0.8231,
     "ci95": [
-     0.7929,
-     0.9355
+     0.754,
+     0.8866
     ]
    },
    "accuracy_other": {
-    "correct": 0,
-    "scored": 0,
-    "accuracy": null,
-    "ci95": null
+    "correct": 70,
+    "scored": 95,
+    "accuracy": 0.7368,
+    "ci95": [
+     0.686,
+     0.7875
+    ]
    },
    "accuracy_value_in_text": {
-    "correct": 69,
-    "scored": 76,
-    "accuracy": 0.9079,
+    "correct": 139,
+    "scored": 169,
+    "accuracy": 0.8225,
     "ci95": [
-     0.8507,
-     0.9647
+     0.764,
+     0.8758
     ]
    },
    "accuracy_value_not_in_text": {
-    "correct": 7,
-    "scored": 17,
-    "accuracy": 0.4118,
+    "correct": 12,
+    "scored": 43,
+    "accuracy": 0.2791,
     "ci95": [
-     0.1818,
-     0.8333
+     0.1429,
+     0.4419
     ]
    },
    "not_in_text_recall": {
-    "yes": 76,
-    "of": 82,
-    "rate": 0.9268,
+    "yes": 123,
+    "of": 131,
+    "rate": 0.9389,
     "ci95": [
-     0.8413,
-     0.9833
+     0.8889,
+     0.9783
     ]
    },
    "false_not_in_text": {
-    "yes": 5,
-    "of": 76,
-    "rate": 0.0658,
+    "yes": 21,
+    "of": 169,
+    "rate": 0.1243,
     "ci95": [
-     0.0,
-     0.127
+     0.0769,
+     0.1705
     ]
    },
    "numbers_not_in_text": {
-    "yes": 7,
-    "of": 400,
-    "rate": 0.0175,
+    "yes": 12,
+    "of": 708,
+    "rate": 0.0169,
     "ci95": [
-     0.0048,
-     0.0333
+     0.0078,
+     0.027
     ]
    },
    "web_offers_on_item_only": 0,
    "first_sentence_s": {
-    "n": 400,
-    "p50": 3.224,
-    "p90": 16.468,
-    "p95": 26.89,
-    "mean": 6.576,
+    "n": 708,
+    "p50": 3.124,
+    "p90": 17.683,
+    "p95": 29.84,
+    "mean": 7.221,
     "min": 0.821,
-    "max": 49.683
+    "max": 104.86
    },
    "total_s": {
-    "n": 400,
-    "p50": 3.235,
-    "p90": 16.468,
-    "p95": 26.896,
-    "mean": 6.581,
+    "n": 708,
+    "p50": 3.131,
+    "p90": 17.692,
+    "p95": 29.843,
+    "mean": 7.225,
     "min": 0.822,
-    "max": 49.683
+    "max": 104.86
    },
    "by_question": {
     "batch": [
-     16,
-     18
+     19,
+     24
     ],
     "expired": [
-     15,
-     19
+     21,
+     27
     ],
     "expiry": [
-     17,
-     19
+     23,
+     27
+    ],
+    "external": [
+     2,
+     2
     ],
     "maker": [
-     20,
-     20
+     26,
+     30
     ],
     "mfg": [
-     19,
-     20
+     24,
+     28
     ],
     "name": [
-     17,
-     20
+     24,
+     30
     ],
     "prescription": [
-     4,
-     4
+     6,
+     6
     ],
     "price": [
-     17,
-     19
+     22,
+     27
     ],
     "quantity": [
-     15,
-     20
+     23,
+     29
     ],
     "strength": [
-     16,
-     20
+     24,
+     30
+    ],
+    "x_absent": [
+     12,
+     12
+    ],
+    "x_date": [
+     5,
+     7
+    ],
+    "x_detail": [
+     11,
+     16
+    ],
+    "x_detail2": [
+     12,
+     15
+    ],
+    "x_detail3": [
+     9,
+     11
+    ],
+    "x_detail4": [
+     5,
+     5
+    ],
+    "x_expired": [
+     0,
+     3
+    ],
+    "x_ingredients": [
+     1,
+     1
+    ],
+    "x_name": [
+     6,
+     7
+    ],
+    "x_page": [
+     0,
+     7
+    ],
+    "x_price": [
+     6,
+     6
+    ],
+    "x_quantity": [
+     3,
+     5
     ]
    }
   }
  },
  "paired": {
-  "n": 179,
-  "gemini_minus_qwen": 0.162,
+  "n": 355,
+  "gemini_minus_qwen": 0.1549,
   "ci95": [
-   0.0886,
-   0.2536
+   0.1081,
+   0.2085
   ],
-  "both_right": 121,
-  "only_gemini": 35,
-  "only_qwen": 6,
-  "both_wrong": 17
+  "both_right": 219,
+  "only_gemini": 65,
+  "only_qwen": 10,
+  "both_wrong": 61
  },
  "judge": {
   "qwen3b": {
