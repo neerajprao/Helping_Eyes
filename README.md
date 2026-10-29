@@ -511,10 +511,11 @@ On the same 355 factual questions Gemini is right 15 points more often (95 % int
 |---|---|
 | The app's code (`expiry_dates`) | 22 / 22 |
 | The app with Gemini or with Qwen (the code's verdict is given to the model) | 22 / 22 each |
-| Qwen alone, without the app's date check | **5 / 22** |
-| Gemini alone, without the app's date check | 21 / 22 |
+| Qwen alone, without the app's date check, neutral prompt | **1 / 22** |
+| Qwen alone, without the app's date check, the app's prompt kept | 5 / 22 |
+| Gemini alone, without the app's date check (neutral prompt / app's prompt) | 22 / 22 and 21 / 22 |
 
-This is why the app works dates out in code. Two expired items photographed for real (a 2024 spice packet and a 2025 ice cream) are part of the photo set.
+The app's prompt tells the model never to say "expired" unless its date check says so, which leans a model left alone towards "not expired", so the test was run again with a neutral expiry rule. Qwen did no better: every one of its 22 answers began "The text doesn't say …" although each label prints its expiry date, and only one went on to a verdict. Its right answers with the app's prompt partly came with wrong reasons (a manufacturing date taken for the expiry). This is why the app works dates out in code. The one slip with the code in place: for "best before 6 months from manufacture", where the code finds no date, Qwen answered "the text does not show an expiry date, so it has not expired" for a jar that had expired. Two expired items photographed for real (a 2024 spice packet and a 2025 ice cream) are part of the photo set.
 
 ### Web lookup safety
 
@@ -589,6 +590,7 @@ A custom OpenCV pipeline detects page turns, splits two-page spreads, orders col
 - **Glare coaching misses shiny packs:** the glare check looks for pure-white patches, so the reflections on foil strips, gold cartons, glossy bottles and screens (bright, but not pure white) produce no "Glare" hint; in 164 real photos it never fired.
 - **Labels laid out in two columns:** when a batch number, date or price is printed a row above or below its label, or coded with symbols (`#` made, `@` use before), the language model can pair the wrong value with a label or not find it.
 - **Web lookups:** only the search query (the question and the product name) leaves the device; the captured text is not sent. Answers depend on the quality of search results: in the evaluation, when the results were about a different company, the model reported them as facts about the user's item instead of saying the results did not answer. Lookups are never offered for expiry, batch or price ("When was it manufactured?" still is).
+- **Relative expiry wording:** "best before 24 months from manufacture" (printed on several real packs) has no date for the code to check, so the model answers alone; in the evaluation Qwen once said "the text does not show an expiry date, so it has not expired" for an item that had expired. Gemini said the date was not printed.
 - **A stalled hosted answer:** when Gemini's free tier is overloaded, a streamed reply can start and then stop sending without closing. The app's 120-second timeout only counts silence between pieces, so the user may wait up to two minutes or more with no answer (the evaluation stops its own calls after 90 s). Qwen on this Mac does not have this problem.
 - **Book mode:** on a real book photographed on a patterned bedspread, the spine of a two-page spread was not found (0 of 4 spreads), so the page numbers were not announced and the two pages were read as one wide page (in the right order); on synthetic spreads it works. A page-turn read can start while the hand is still turning the page. Qwen 3B is too slow to group the paragraphs of a dense page within 12 seconds, so such pages are read in layout order. Strong page curvature, uneven lighting, fingers over the text and illustrations near the centre of a spread can affect spine and column detection. Motion blur prevents recognition, so the book should be held steady or placed on a surface. When the view moves while a page is being read, a few words may be repeated, because the reading position is sent to the server before the new view has been recognised.
 - **Model accuracy:** although the model is restricted to the captured text, a small model can still misread or confuse details. Medically important information should be confirmed with a pharmacist or doctor.

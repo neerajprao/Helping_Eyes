@@ -29,7 +29,7 @@
    "date_right": 0,
    "date_wrong": []
   },
-  "commit": "7e36162",
+  "commit": "c418ae1",
   "dirty": true,
   "app_gemini": {
    "correct": 22,
@@ -139,6 +139,70 @@
    "date_stated": 0,
    "date_right": 0,
    "date_wrong": []
+  },
+  "llm_fair_gemini": {
+   "correct": 22,
+   "scored": 22,
+   "service_errors": 0,
+   "accuracy": 1.0,
+   "wrong": [],
+   "date_stated": 22,
+   "date_right": 22,
+   "date_wrong": []
+  },
+  "llm_fair_gemini_relative": {
+   "correct": 1,
+   "scored": 2,
+   "service_errors": 0,
+   "accuracy": 0.5,
+   "wrong": [
+    "r01"
+   ],
+   "date_stated": 0,
+   "date_right": 0,
+   "date_wrong": []
+  },
+  "llm_fair_qwen3b": {
+   "correct": 1,
+   "scored": 22,
+   "service_errors": 0,
+   "accuracy": 0.0455,
+   "wrong": [
+    "e01",
+    "e02",
+    "e03",
+    "e04",
+    "e05",
+    "e06",
+    "e07",
+    "e08",
+    "e09",
+    "e10",
+    "e11",
+    "e12",
+    "e13",
+    "e14",
+    "e15",
+    "e16",
+    "e17",
+    "e18",
+    "e19",
+    "e21",
+    "e22"
+   ],
+   "date_stated": 2,
+   "date_right": 2,
+   "date_wrong": []
+  },
+  "llm_fair_qwen3b_relative": {
+   "correct": 2,
+   "scored": 2,
+   "service_errors": 0,
+   "accuracy": 1.0,
+   "wrong": [],
+   "date_stated": 0,
+   "date_right": 0,
+   "date_wrong": []
   }
  },
  "cases": [
@@ -199,6 +263,30 @@
     "says_expired": false,
     "correct": true,
     "date_ok": true
+   },
+   "llm_fair_gemini": {
+    "answer": "The product has not expired. It is valid until the end of November 2026.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 3.487,
+    "total_s": 3.505,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": false,
+    "correct": true,
+    "date_ok": true
+   },
+   "llm_fair_qwen3b": {
+    "answer": "The text doesn't say when the product expires.",
+    "route": "question",
+    "not_in_text": true,
+    "first_s": 2.883,
+    "total_s": 2.883,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": null,
+    "correct": false,
+    "date_ok": null
    }
   },
   {
@@ -258,6 +346,30 @@
     "says_expired": false,
     "correct": true,
     "date_ok": true
+   },
+   "llm_fair_gemini": {
+    "answer": "It has not expired. It is valid until the end of December 2026.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 0.846,
+    "total_s": 0.852,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": false,
+    "correct": true,
+    "date_ok": true
+   },
+   "llm_fair_qwen3b": {
+    "answer": "The text doesn't say when it is or was valid until.",
+    "route": "question",
+    "not_in_text": true,
+    "first_s": 0.522,
+    "total_s": 0.522,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": null,
+    "correct": false,
+    "date_ok": null
    }
   },
   {
@@ -312,6 +424,30 @@
     "not_in_text": true,
     "first_s": 0.501,
     "total_s": 0.501,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": null,
+    "correct": false,
+    "date_ok": null
+   },
+   "llm_fair_gemini": {
+    "answer": "Yes, this product has expired. It was valid until the end of December 2025.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 4.321,
+    "total_s": 4.323,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": true,
+    "correct": true,
+    "date_ok": true
+   },
+   "llm_fair_qwen3b": {
+    "answer": "The text doesn't say when it is or was valid until.",
+    "route": "question",
+    "not_in_text": true,
+    "first_s": 0.522,
+    "total_s": 0.522,
     "retries": 0,
     "service_error": false,
     "says_expired": null,
@@ -376,6 +512,30 @@
     "says_expired": false,
     "correct": false,
     "date_ok": true
+   },
+   "llm_fair_gemini": {
+    "answer": "Yes, this product has expired. It was valid until the end of April 2026.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 1.93,
+    "total_s": 1.931,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": true,
+    "correct": true,
+    "date_ok": true
+   },
+   "llm_fair_qwen3b": {
+    "answer": "The text doesn't say when it expires.",
+    "route": "question",
+    "not_in_text": true,
+    "first_s": 0.451,
+    "total_s": 0.451,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": null,
+    "correct": false,
+    "date_ok": null
    }
   },
   {
@@ -430,6 +590,30 @@
     "not_in_text": true,
     "first_s": 0.497,
     "total_s": 0.498,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": null,
+    "correct": false,
+    "date_ok": null
+   },
+   "llm_fair_gemini": {
+    "answer": "No, it has not expired. It is valid until the end of July 2028.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 1.336,
+    "total_s": 1.398,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": false,
+    "correct": true,
+    "date_ok": true
+   },
+   "llm_fair_qwen3b": {
+    "answer": "The text doesn't say when this product expires.",
+    "route": "question",
+    "not_in_text": true,
+    "first_s": 0.468,
+    "total_s": 0.468,
     "retries": 0,
     "service_error": false,
     "says_expired": null,
@@ -494,6 +678,30 @@
     "says_expired": null,
     "correct": false,
     "date_ok": null
+   },
+   "llm_fair_gemini": {
+    "answer": "Yes, the product has expired. It was valid until the end of November 2025.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 1.116,
+    "total_s": 1.117,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": true,
+    "correct": true,
+    "date_ok": true
+   },
+   "llm_fair_qwen3b": {
+    "answer": "The text doesn't say when it is or was valid until.",
+    "route": "question",
+    "not_in_text": true,
+    "first_s": 0.524,
+    "total_s": 0.524,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": null,
+    "correct": false,
+    "date_ok": null
    }
   },
   {
@@ -553,6 +761,30 @@
     "says_expired": false,
     "correct": true,
     "date_ok": true
+   },
+   "llm_fair_gemini": {
+    "answer": "It has not expired. It is valid until the end of December 2026.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 2.07,
+    "total_s": 2.075,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": false,
+    "correct": true,
+    "date_ok": true
+   },
+   "llm_fair_qwen3b": {
+    "answer": "The text doesn't say when it is or was valid until.",
+    "route": "question",
+    "not_in_text": true,
+    "first_s": 0.522,
+    "total_s": 0.522,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": null,
+    "correct": false,
+    "date_ok": null
    }
   },
   {
@@ -607,6 +839,30 @@
     "not_in_text": true,
     "first_s": 0.493,
     "total_s": 0.493,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": null,
+    "correct": false,
+    "date_ok": null
+   },
+   "llm_fair_gemini": {
+    "answer": "Yes, it has expired. It was valid until the end of September 2026.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 1.22,
+    "total_s": 1.222,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": true,
+    "correct": true,
+    "date_ok": true
+   },
+   "llm_fair_qwen3b": {
+    "answer": "The text doesn't say when it is or was valid until.",
+    "route": "question",
+    "not_in_text": true,
+    "first_s": 0.524,
+    "total_s": 0.525,
     "retries": 0,
     "service_error": false,
     "says_expired": null,
@@ -671,6 +927,30 @@
     "says_expired": false,
     "correct": true,
     "date_ok": false
+   },
+   "llm_fair_gemini": {
+    "answer": "The cough syrup has not expired yet. It is valid until the end of October 2026.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 2.992,
+    "total_s": 3.031,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": false,
+    "correct": true,
+    "date_ok": true
+   },
+   "llm_fair_qwen3b": {
+    "answer": "The text doesn't say when the product expires.",
+    "route": "question",
+    "not_in_text": true,
+    "first_s": 0.475,
+    "total_s": 0.476,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": null,
+    "correct": false,
+    "date_ok": null
    }
   },
   {
@@ -725,6 +1005,30 @@
     "not_in_text": true,
     "first_s": 0.477,
     "total_s": 0.478,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": null,
+    "correct": false,
+    "date_ok": null
+   },
+   "llm_fair_gemini": {
+    "answer": "Yes, it has expired. It was valid until the end of August 2026.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 1.328,
+    "total_s": 1.33,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": true,
+    "correct": true,
+    "date_ok": true
+   },
+   "llm_fair_qwen3b": {
+    "answer": "The text doesn't say when the product expires.",
+    "route": "question",
+    "not_in_text": true,
+    "first_s": 0.474,
+    "total_s": 0.474,
     "retries": 0,
     "service_error": false,
     "says_expired": null,
@@ -789,6 +1093,30 @@
     "says_expired": null,
     "correct": false,
     "date_ok": null
+   },
+   "llm_fair_gemini": {
+    "answer": "No, it has not expired. It is valid until the end of June 2028.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 7.884,
+    "total_s": 7.914,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": false,
+    "correct": true,
+    "date_ok": true
+   },
+   "llm_fair_qwen3b": {
+    "answer": "The text doesn't say when the product expires.",
+    "route": "question",
+    "not_in_text": true,
+    "first_s": 0.466,
+    "total_s": 0.466,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": null,
+    "correct": false,
+    "date_ok": null
    }
   },
   {
@@ -848,6 +1176,30 @@
     "says_expired": false,
     "correct": false,
     "date_ok": true
+   },
+   "llm_fair_gemini": {
+    "answer": "Yes, the product has expired. It was valid until the end of February 2026.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 1.365,
+    "total_s": 1.391,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": true,
+    "correct": true,
+    "date_ok": true
+   },
+   "llm_fair_qwen3b": {
+    "answer": "The text doesn't say when it expires.",
+    "route": "question",
+    "not_in_text": true,
+    "first_s": 0.453,
+    "total_s": 0.453,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": null,
+    "correct": false,
+    "date_ok": null
    }
   },
   {
@@ -907,6 +1259,30 @@
     "says_expired": false,
     "correct": false,
     "date_ok": true
+   },
+   "llm_fair_gemini": {
+    "answer": "Yes, this product has expired. It was valid until 14 October 2026.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 6.871,
+    "total_s": 6.877,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": true,
+    "correct": true,
+    "date_ok": true
+   },
+   "llm_fair_qwen3b": {
+    "answer": "The text doesn't say when it expires.",
+    "route": "question",
+    "not_in_text": true,
+    "first_s": 0.456,
+    "total_s": 0.456,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": null,
+    "correct": false,
+    "date_ok": null
    }
   },
   {
@@ -966,6 +1342,30 @@
     "says_expired": null,
     "correct": false,
     "date_ok": true
+   },
+   "llm_fair_gemini": {
+    "answer": "No, it has not expired. It is valid until December 2, 2026.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 1.257,
+    "total_s": 1.282,
+    "retries": 1,
+    "service_error": false,
+    "says_expired": false,
+    "correct": true,
+    "date_ok": true
+   },
+   "llm_fair_qwen3b": {
+    "answer": "The text doesn't say when it expires.",
+    "route": "question",
+    "not_in_text": true,
+    "first_s": 0.452,
+    "total_s": 0.452,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": null,
+    "correct": false,
+    "date_ok": null
    }
   },
   {
@@ -1025,6 +1425,30 @@
     "says_expired": false,
     "correct": false,
     "date_ok": true
+   },
+   "llm_fair_gemini": {
+    "answer": "Yes, the product has expired. It was valid until 18 October 2026.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 1.205,
+    "total_s": 1.207,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": true,
+    "correct": true,
+    "date_ok": true
+   },
+   "llm_fair_qwen3b": {
+    "answer": "The text doesn't say when it expires.",
+    "route": "question",
+    "not_in_text": true,
+    "first_s": 0.455,
+    "total_s": 0.455,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": null,
+    "correct": false,
+    "date_ok": null
    }
   },
   {
@@ -1079,6 +1503,30 @@
     "not_in_text": true,
     "first_s": 0.501,
     "total_s": 0.501,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": null,
+    "correct": false,
+    "date_ok": null
+   },
+   "llm_fair_gemini": {
+    "answer": "It has not expired. It is valid until the end of November 2027.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 26.03,
+    "total_s": 26.034,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": false,
+    "correct": true,
+    "date_ok": true
+   },
+   "llm_fair_qwen3b": {
+    "answer": "The text doesn't say when it is or was valid until.",
+    "route": "question",
+    "not_in_text": true,
+    "first_s": 0.522,
+    "total_s": 0.522,
     "retries": 0,
     "service_error": false,
     "says_expired": null,
@@ -1143,6 +1591,30 @@
     "says_expired": null,
     "correct": false,
     "date_ok": null
+   },
+   "llm_fair_gemini": {
+    "answer": "Yes, it has expired. The expiry date was September 2026.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 1.102,
+    "total_s": 1.104,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": true,
+    "correct": true,
+    "date_ok": true
+   },
+   "llm_fair_qwen3b": {
+    "answer": "The text doesn't say when it has expired.",
+    "route": "question",
+    "not_in_text": true,
+    "first_s": 0.472,
+    "total_s": 0.472,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": null,
+    "correct": false,
+    "date_ok": null
    }
   },
   {
@@ -1197,6 +1669,30 @@
     "not_in_text": true,
     "first_s": 0.676,
     "total_s": 0.676,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": null,
+    "correct": false,
+    "date_ok": null
+   },
+   "llm_fair_gemini": {
+    "answer": "It has not expired. It is valid until the end of March 2027.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 1.368,
+    "total_s": 1.371,
+    "retries": 1,
+    "service_error": false,
+    "says_expired": false,
+    "correct": true,
+    "date_ok": true
+   },
+   "llm_fair_qwen3b": {
+    "answer": "The text doesn't say when it is or was valid until.",
+    "route": "question",
+    "not_in_text": true,
+    "first_s": 0.521,
+    "total_s": 0.521,
     "retries": 0,
     "service_error": false,
     "says_expired": null,
@@ -1261,6 +1757,30 @@
     "says_expired": null,
     "correct": false,
     "date_ok": null
+   },
+   "llm_fair_gemini": {
+    "answer": "Yes, the hand sanitiser has expired. It was valid until the end of August 2026.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 7.455,
+    "total_s": 7.456,
+    "retries": 2,
+    "service_error": false,
+    "says_expired": true,
+    "correct": true,
+    "date_ok": true
+   },
+   "llm_fair_qwen3b": {
+    "answer": "The text doesn't say when it is or was valid until.",
+    "route": "question",
+    "not_in_text": true,
+    "first_s": 0.516,
+    "total_s": 0.516,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": null,
+    "correct": false,
+    "date_ok": null
    }
   },
   {
@@ -1320,6 +1840,30 @@
     "says_expired": null,
     "correct": false,
     "date_ok": false
+   },
+   "llm_fair_gemini": {
+    "answer": "The product has not expired. It is valid until the end of January 2028.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 17.594,
+    "total_s": 17.62,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": false,
+    "correct": true,
+    "date_ok": true
+   },
+   "llm_fair_qwen3b": {
+    "answer": "The text doesn't say when it expires. It lists the manufacture date as February 2026 and expiration date as January 2028. Today's date is October 19, 2026, so it has not expired yet.",
+    "route": "question",
+    "not_in_text": true,
+    "first_s": 0.456,
+    "total_s": 1.219,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": false,
+    "correct": true,
+    "date_ok": true
    }
   },
   {
@@ -1374,6 +1918,30 @@
     "not_in_text": true,
     "first_s": 0.591,
     "total_s": 0.761,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": null,
+    "correct": false,
+    "date_ok": null
+   },
+   "llm_fair_gemini": {
+    "answer": "Yes, this product has expired. It was valid until the end of October 2025.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 4.084,
+    "total_s": 4.103,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": true,
+    "correct": true,
+    "date_ok": true
+   },
+   "llm_fair_qwen3b": {
+    "answer": "The text doesn't say when it expires.",
+    "route": "question",
+    "not_in_text": true,
+    "first_s": 0.453,
+    "total_s": 0.453,
     "retries": 0,
     "service_error": false,
     "says_expired": null,
@@ -1438,6 +2006,30 @@
     "says_expired": false,
     "correct": true,
     "date_ok": true
+   },
+   "llm_fair_gemini": {
+    "answer": "It has not expired yet. It is valid until October 31, 2026.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 19.029,
+    "total_s": 19.034,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": false,
+    "correct": true,
+    "date_ok": true
+   },
+   "llm_fair_qwen3b": {
+    "answer": "The text doesn't say when it expires. It lists the manufacturing date as June 2025 and an expiry date of October 31, 2026. Today's date is October 19, 2026.",
+    "route": "question",
+    "not_in_text": true,
+    "first_s": 0.458,
+    "total_s": 1.192,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": null,
+    "correct": false,
+    "date_ok": true
    }
   },
   {
@@ -1497,6 +2089,30 @@
     "says_expired": null,
     "correct": true,
     "date_ok": null
+   },
+   "llm_fair_gemini": {
+    "answer": "The product has not expired. It is valid until the end of September 2026.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 23.422,
+    "total_s": 23.425,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": false,
+    "correct": false,
+    "date_ok": null
+   },
+   "llm_fair_qwen3b": {
+    "answer": "The text doesn't say when it expires.",
+    "route": "question",
+    "not_in_text": true,
+    "first_s": 0.461,
+    "total_s": 0.461,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": null,
+    "correct": true,
+    "date_ok": null
    }
   },
   {
@@ -1551,6 +2167,30 @@
     "not_in_text": true,
     "first_s": 0.503,
     "total_s": 0.503,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": null,
+    "correct": true,
+    "date_ok": null
+   },
+   "llm_fair_gemini": {
+    "answer": "The product has not expired. It is valid until the end of May 2027.",
+    "route": "question",
+    "not_in_text": false,
+    "first_s": 2.716,
+    "total_s": 2.736,
+    "retries": 0,
+    "service_error": false,
+    "says_expired": false,
+    "correct": true,
+    "date_ok": null
+   },
+   "llm_fair_qwen3b": {
+    "answer": "The text doesn't say when it was packed or what the expiry date is.",
+    "route": "question",
+    "not_in_text": true,
+    "first_s": 0.572,
+    "total_s": 0.573,
     "retries": 0,
     "service_error": false,
     "says_expired": null,

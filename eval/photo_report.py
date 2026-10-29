@@ -139,6 +139,8 @@ def says_expired(answer):
     a = norm(answer)
     a = re.sub(r"\b(?:cannot|can'?t|could not|couldn'?t|unable to|not possible to|no way to)\s+(?:tell|say|know|determine|"
                r"confirm|check)\b[^.]*", "", a)              # "I cannot tell if it has expired" is no verdict
+    a = re.sub(r"\b(?:does not|doesn'?t|do not|don'?t|did not|didn'?t)\s+(?:say|show|state|mention|specify|indicate|give|"
+               r"list|tell)\b(?:(?!\b(?:so|but)\b)[^.,;])*", "", a)   # nor is "the text doesn't say when it is valid until"
     if re.search(r"\b(not|hasn'?t|has not|isn'?t|is not)\b[^.]{0,20}\bexpired\b|\bnot yet expired\b", a):
         return False
     if re.search(r"\b(has|have|had|is|already)\b[^.]{0,15}\bexpired\b|\bexpired on\b|\bpast (?:its|the) expiry\b", a):

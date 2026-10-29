@@ -16,8 +16,8 @@ Gemini / Qwen 2.5 3B via Ollama, Kokoro TTS, JavaScript)
   *Short:* 90.5 % OCR key-line accuracy on 164 real photos, beating RapidOCR and Tesseract.
 
 - Kept exact answers out of the LLM: expiry verdicts computed in code were right on 22 / 22 label formats with both
-  models, against 5 / 22 for Qwen 3B reasoning about the dates alone.
-  *Short:* Code-computed expiry checks: 22/22 correct vs 5/22 for the LLM alone.
+  models, against 1 / 22 for Qwen 3B on its own with a neutral prompt (5 / 22 with the app's prompt).
+  *Short:* Code-computed expiry checks: 22/22 correct vs 1/22 for a 3B LLM alone.
 
 - Compared Gemini Flash-Lite with a local Qwen 2.5 3B on the same photos with paired bootstrap confidence intervals:
   80.0 % vs 64.5 % factual accuracy on 708 questions each (+15 points paired, 95 % CI 11–21), both reporting missing

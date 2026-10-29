@@ -70,7 +70,7 @@
   "qwen3b": "qwen2.5:3b-instruct"
  },
  "temperature": 0.2,
- "commit": "4c4d9b1",
+ "commit": "c418ae1",
  "dirty": true,
  "by_model": {
   "qwen3b": {

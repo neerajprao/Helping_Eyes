@@ -43,6 +43,10 @@ def test_expiry_verdicts_in_answers():
 def test_cannot_tell_is_not_a_verdict():
     assert P.says_expired("The text does not show an expiry date, so I cannot tell if it has expired.") is None
     assert P.says_expired("I can't say whether it has expired.") is None
+    # Qwen's refusals in the expiry ablation: "valid until" / "has expired" inside them are not a verdict
+    assert P.says_expired("The text doesn't say when it is or was valid until.") is None
+    assert P.says_expired("The text doesn't say when it has expired.") is None
+    assert P.says_expired("The text doesn't say when it expires. It shows Exp 01/2028, so it has not expired.") is False
 
 
 def test_not_in_text_by_tag_or_by_wording():

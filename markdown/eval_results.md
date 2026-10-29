@@ -122,10 +122,14 @@ Per question (correct / scored):
 | The app's code alone (`expiry_dates`) | 22/22 | – | – |
 | The app (code verdict given to the model), Gemini Flash-Lite | 22/22 | – | 0 of 22 |
 | The app (code verdict given to the model), Qwen 2.5 3B | 22/22 | – | 1 of 22 (e09) |
-| Model alone, no date checks (ablation), Gemini Flash-Lite | 21/22 | e03 | 0 of 22 |
-| Model alone, no date checks (ablation), Qwen 2.5 3B | 5/22 | e03, e04, e05, e06, e08, e10, e11, e12, e13, e14, e15, e16, e17, e18, e19, e20, e21 | 2 of 11 (e09, e20) |
+| Model alone, neutral prompt (ablation), Gemini Flash-Lite | 22/22 | – | 0 of 22 |
+| Model alone, neutral prompt (ablation), Qwen 2.5 3B | 1/22 | e01, e02, e03, e04, e05, e06, e07, e08, e09, e10, e11, e12, e13, e14, e15, e16, e17, e18, e19, e21, e22 | 0 of 2 |
+| Model alone, app's prompt kept (its rule leans to "not expired"), Gemini Flash-Lite | 21/22 | e03 | 0 of 22 |
+| Model alone, app's prompt kept (its rule leans to "not expired"), Qwen 2.5 3B | 5/22 | e03, e04, e05, e06, e08, e10, e11, e12, e13, e14, e15, e16, e17, e18, e19, e20, e21 | 2 of 11 (e09, e20) |
 
-Relative wordings ("best before 6 months from manufacture", 2 cases, reported apart): the code finds no date in 2/2; the app says so or works it out correctly with Gemini in 2/2 and with Qwen in 1/2.
+Why Qwen fails alone: with the neutral prompt, 22 of its 22 answers begin "The text doesn't say / show …" although every label prints its expiry date, and only 1 of them give a verdict; with the app's prompt it more often adds a verdict, but some right verdicts come with wrong reasons (a manufacturing date taken for the expiry date). Changing the prompt rule does not rescue it: the date checks in code do.
+
+Relative wordings ("best before 6 months from manufacture", 2 cases, reported apart): the code finds no date in 2/2; the app says so or works it out correctly with Gemini in 2/2 and with Qwen in 1/2 (Qwen: "The text does not show an expiry date, so it has not expired", for a jar that had expired).
 
 ## 4. Web lookup safety
 

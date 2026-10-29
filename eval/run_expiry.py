@@ -14,7 +14,12 @@ Measured:
   app      "Has it expired?" through the app's own path (the code's verdict is in the prompt and in the question
            note), for Gemini and Qwen 3B
   llm_only the ablation in the requirements: the same question with the app's date checks taken out (the model gets
-           only the text and today's date and has to work it out itself), for Gemini and Qwen 3B
+           only the text and today's date and has to work it out itself), for Gemini and Qwen 3B. The app's prompt is
+           kept as it is, so its expiry rule ("never say it has expired unless the Date checks say HAS EXPIRED") still
+           leans the model towards "not expired"
+  llm_fair the same, with that rule replaced by a neutral one (find the expiry date, compare it with today, a month-only
+           date is good to the end of the month, say so when the text has none) and no "Date checks" section: the
+           fairer measure of what the model can do alone
 
 Two "relative" cases (best before N months from manufacture) are reported apart: the app has no rule for them and
 must say that the text gives no expiry date.
@@ -75,16 +80,33 @@ def code_verdict(assistant, text):
     return last_day < C.EVAL_DATE, f"{printed} -> valid until {last_day.isoformat()}"
 
 
-def ask(case_text, provider, llm_only):
+CONDITIONS = ("app", "llm_only", "llm_fair")
+NEUTRAL_RULE = ("- For expiry questions, find the expiry date (also written as Exp, Best before or Use by) in the text and\n"
+                "  compare it with today's date. A date with only a month and a year is good until the end of that month.\n"
+                "  Answer in one or two sentences: say whether it has expired, and when it is or was valid until. If the\n"
+                "  text shows no expiry date, say so; never guess it from a manufacturing date.\n")
+
+
+def neutral_prompt(prompt):
+    """The app's prompt with its expiry rule replaced by NEUTRAL_RULE and the "Date checks" section removed."""
+    start = prompt.index("- For expiry questions")
+    end = prompt.index("- Questions about the page number")
+    out = prompt[:start] + NEUTRAL_RULE + prompt[end:]
+    return out.replace("Date checks:\n{date_checks}\n\n", "")
+
+
+def ask(case_text, provider, cond):
     import assistant
-    saved = assistant.expiry_checks, assistant._EXPIRY_QUESTION
-    if llm_only:                     # the app's date arithmetic taken out: the model works it out alone
+    saved = assistant.expiry_checks, assistant._EXPIRY_QUESTION, assistant.SYSTEM_PROMPT
+    if cond != "app":                # the app's date arithmetic taken out: the model works it out alone
         assistant.expiry_checks = lambda text, today=None: "None given: work it out from the text and today's date."
         assistant._EXPIRY_QUESTION = re.compile(r"(?!)")
+    if cond == "llm_fair":
+        assistant.SYSTEM_PROMPT = neutral_prompt(assistant.SYSTEM_PROMPT)
     try:
         return C.ask(QUESTION, case_text, provider)
     finally:
-        assistant.expiry_checks, assistant._EXPIRY_QUESTION = saved
+        assistant.expiry_checks, assistant._EXPIRY_QUESTION, assistant.SYSTEM_PROMPT = saved
 
 
 def score(r, truth, relative, found):
@@ -116,12 +138,12 @@ def main():
         verdict, found = code_verdict(assistant, text)
         row["code"] = {"verdict": verdict, "found": found,
                        "correct": (verdict == truth) if not row["relative"] else (verdict is None)}
-        for cond in ("app", "llm_only"):
+        for cond in CONDITIONS:
             for provider in MODELS:
                 key = f"{cond}_{provider}"
                 if key not in row or row[key].get("service_error"):
                     print(f"{cid} {key} ...", flush=True)
-                    row[key] = ask(text, provider, cond == "llm_only")
+                    row[key] = ask(text, provider, cond)
                 row[key].update(score(row[key], truth, row["relative"], row["code"]["found"]))
         rows.append(row)
         C.save_json(OUT, {"cases": rows})
@@ -141,7 +163,7 @@ def main():
                "expired_cases": sum(1 for _, _, t in CASES if t), "question": QUESTION,
                "models": {"gemini": assistant.LLM_MODEL, "qwen3b": assistant.QWEN_MODELS["qwen3b"]},
                "code": tally("code"), "code_relative": tally("code", True), **C.git_state()}
-    for cond in ("app", "llm_only"):
+    for cond in CONDITIONS:
         for provider in MODELS:
             summary[f"{cond}_{provider}"] = tally(f"{cond}_{provider}")
             summary[f"{cond}_{provider}_relative"] = tally(f"{cond}_{provider}", True)

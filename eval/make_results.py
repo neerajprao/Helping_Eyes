@@ -228,15 +228,30 @@ def main():
               "and one month either side of it. Question: \"Has it expired?\"", "",
               "| Who decides | Verdict correct | Wrong verdicts | \"Valid until\" date stated wrongly |", "|---|---|---|---|",
               f"| The app's code alone (`expiry_dates`) | {s['code']['correct']}/{s['code']['scored']} | {', '.join(s['code']['wrong']) or '–'} | – |"]
-        for cond, label in (("app", "The app (code verdict given to the model)"), ("llm_only", "Model alone, no date checks (ablation)")):
+        for cond, label in (("app", "The app (code verdict given to the model)"),
+                            ("llm_fair", "Model alone, neutral prompt (ablation)"),
+                            ("llm_only", "Model alone, app's prompt kept (its rule leans to \"not expired\")")):
             for m in ("gemini", "qwen3b"):
-                d = s[f"{cond}_{m}"]
+                d = s.get(f"{cond}_{m}")
+                if not d:
+                    continue
                 L.append(f"| {label}, {NAMES[m]} | {d['correct']}/{d['scored']} | {', '.join(d['wrong']) or '–'} | "
                          f"{len(d['date_wrong'])} of {d['date_stated']}{(' (' + ', '.join(d['date_wrong']) + ')') if d['date_wrong'] else ''} |")
+        if s.get("llm_fair_qwen3b"):
+            dated = [c for c in exp["cases"] if not c["relative"]]
+            refuse = sum(bool(re.match(r"\s*the text (?:does not|doesn'?t) (?:say|show)", c["llm_fair_qwen3b"]["answer"], re.I))
+                         for c in dated)
+            verdicts = sum(c["llm_fair_qwen3b"]["says_expired"] is not None for c in dated)
+            L += ["", f"Why Qwen fails alone: with the neutral prompt, {refuse} of its {len(dated)} answers begin \"The text doesn't "
+                  f"say / show …\" although every label prints its expiry date, and only {verdicts} of them give a verdict; with the app's "
+                  "prompt it more often adds a verdict, but some right verdicts come with wrong reasons (a manufacturing date "
+                  "taken for the expiry date). Changing the prompt rule does not rescue it: the date checks in code do."]
         L += ["", f"Relative wordings (\"best before 6 months from manufacture\", {s['relative_cases']} cases, reported apart): "
               f"the code finds no date in {s['code_relative']['correct']}/{s['code_relative']['scored']}; the app says so or works it out "
               f"correctly with Gemini in {s['app_gemini_relative']['correct']}/{s['app_gemini_relative']['scored']} and with Qwen in "
-              f"{s['app_qwen3b_relative']['correct']}/{s['app_qwen3b_relative']['scored']}."]
+              f"{s['app_qwen3b_relative']['correct']}/{s['app_qwen3b_relative']['scored']}"
+              + (" (Qwen: \"The text does not show an expiry date, so it has not expired\", for a jar that had expired)"
+                 if s["app_qwen3b_relative"]["wrong"] else "") + "."]
 
     # ---------------------------------------------------------------- web
     if web:
