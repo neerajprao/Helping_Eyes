@@ -1,5 +1,10 @@
 # Shot list: 45 photos
 
+**What was actually collected (Checkpoint 1, 2026-10-28):** the 148 pharmacy photos of the photo test (medicine
+strips, cartons and bottles, personal care) were reused, and 16 new photos were added instead of this full list:
+6 food labels, 5 book pages (4 two-page spreads), 3 documents and 2 laptop screens, plus a 30-second video of 4 page
+turns. All 164 are phone photos; the laptop-webcam shots were not taken. The list below is the original plan.
+
 **Before every photo: no personal details.** No names (prescriptions, pharmacy stickers with a patient name),
 no addresses, no phone numbers, no e-mail addresses, no faces, no card or account numbers, no receipts with card
 digits. Cover them with a finger or a sticky note, or choose another item. Photos stay in the git-ignored

@@ -27,6 +27,7 @@ Almost all of the computer vision lives in one file: [helping_eyes/vision.py](he
 18. [Cheat sheet: every number and why](#18-cheat-sheet-every-number-and-why)
 19. [Math glossary](#19-math-glossary)
 20. [How the checks did on 148 real photos](#20-how-the-checks-did-on-148-real-photos)
+21. [Book mode and live checks on real input](#21-book-mode-and-live-checks-on-real-input)
 
 ---
 
@@ -958,3 +959,24 @@ What came out:
 | **Capture versions** (3.4) | Corrected outline: the untouched photo on 134, the flattened item on 14 | With a real outline a tilted item is straightened before reading; the text the app keeps improved slightly (90.1 % against 89.7 % key-line accuracy), and the answers stayed the same (62.8 %) |
 
 To look at one check at a time, `eval/make_check_folders.py` puts the photos into `eval/data/private/cv_checks/blur_photos`, `glare_photos`, `dark_photos`, `slant_photos` and `outline_photos` (13, 15, 126, 64 and 134 photos), each with only that check's boxes. The full table, and every photo with its boxes, is in [eval_photo_summary.md](eval_photo_summary.md) and `eval_photo_report.md` (kept out of git because it holds the photos' text).
+
+On 28 October 2026 the photo test was run again on **164 photos** (the 148 above plus 16 food labels, book pages, documents and screens) with the current code and a fixed evaluation date: the app's capture text reached 90.5 % key-line accuracy (character error rate 0.095), and the glare check still never fired. See [eval_results.md](eval_results.md).
+
+---
+
+## 21. Book mode and live checks on real input
+
+Measured on 28 October 2026 (`eval/run_book.py`, `eval/run_latency.py`); the numbers are in [eval_results.md](eval_results.md).
+
+**Five photos of a real book** (4 of them two-page spreads), read with book mode's path:
+
+| Step | Result | What it means |
+|---|---|---|
+| **Spine split** (10) | 0 of 4 spreads split | Neither clue fired on these photos, so each spread was read as one wide page. On the synthetic spreads used in the tests the split works (6 / 6) |
+| **Page numbers** (11) | 0 of 5 announced | With no split, the printed page numbers sit inside the body text of one wide "page", so `page_numbers()` finds none |
+| **Reading order** (12, XY-cut) | 98.4 % of key-line pairs in the right order (309 of 314); reading started at the first body line on 4 of 5 | Even unsplit, the layout order follows the left page and then the right page |
+| **Paragraph grouping by the model** (13) | 0 of 5 pages within the 12-second limit (Qwen 3B) | Dense pages have too many lines for the small model in time; the page is then read in layout order, as designed |
+
+**A 30-second phone video of 4 page turns**, fed to `BookWatcher` at 8 frames a second (the rate the page sends live frames): 6 "changed" events for 5 pages. Every turn was caught; looking at the saved frame of each event, the extra one came at 17.3 s while the hand was still over the page in the middle of a turn, so book mode would have started reading a half-covered page. No "moved" events.
+
+**Live checks.** A live frame (960 px) takes 0.11 s on the server (it could take about 9.3 a second), but the page waits 100 ms after each reply before sending the next frame, so the checks run about **4.8 times a second**, below the requirement's 10. A book-mode frame (page-turn watch only) takes 0.004 s.
