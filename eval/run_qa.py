@@ -1,5 +1,5 @@
 """
-Answer accuracy, Gemini vs Qwen 3B (Phase 4 of markdown/eval_plan.md), on a fixed subset of the photos.
+Answer accuracy, Gemini vs Qwen 3B (Phase 4 of markdown/eval/eval_plan.md), on a fixed subset of the photos.
 
     .venv/bin/python eval/run_qa.py subset                 choose the subset (once; eval/data/qa_subset.json)
     .venv/bin/python eval/run_qa.py run [--models gemini]  ask every question with each model (resumes; stops by

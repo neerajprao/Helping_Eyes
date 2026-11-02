@@ -27,8 +27,8 @@ Stages:
           photo_report.py). Today's date is fixed at common.EVAL_DATE.
   score   Compares each engine and each answer with Claude's reading of the photo (eval/data/private/claude_reference/
           <id>.json, written by looking only at the photo, before any OCR output was read).
-  report  markdown/eval_photo_report.md (every photo: pictures with boxes, OCR, checks, all answers; git-ignored)
-          and markdown/eval_photo_summary.md (numbers only).
+  report  markdown/eval/eval_photo_report.md (every photo: pictures with boxes, OCR, checks, all answers; git-ignored)
+          and markdown/eval/eval_photo_summary.md (numbers only).
 
 Everything with photo text stays in the git-ignored eval/data/private/photo_eval/.
 """

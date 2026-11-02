@@ -7,7 +7,7 @@ Run Helping Eyes on this computer, the same app that runs on the host:
     python run.py --host 0.0.0.0     also reachable from other devices on your network
     python run.py --share            also give it a public https address: your fixed ngrok address when NGROK_DOMAIN is
                                      set in helping_eyes/.env, otherwise a free Cloudflare tunnel (a new address each run)
-    python run.py --no-ollama        do not start Ollama (the local Qwen model in the page's Model menu)
+    python run.py --no-ollama        do not start Ollama (the local Qwen model in the page's Answers from menu)
 
 It checks your setup, starts Ollama if it is installed and not already running (and stops it again at the
 end only if it started it), starts the server (helping_eyes/server.py), waits until it is ready and opens
@@ -16,8 +16,8 @@ does for a visitor on the host. The only thing you need is a language-model key 
 
     LLM_API_KEY=<your key from https://aistudio.google.com/apikey>
 
-Without a key the app still starts; "read everything", expiry and page-number answers and the live
-guidance work, and questions that need the language model say the key is missing.
+Without a key the app still starts; "read everything", page-number answers, the live guidance and the
+local Qwen model work, and questions to Gemini (expiry questions too) say the key is missing.
 Stop it with Ctrl+C.
 """
 
@@ -368,7 +368,7 @@ def main() -> None:
     parser.add_argument("--host", default="127.0.0.1", help="address to listen on (default 127.0.0.1: this computer only)")
     parser.add_argument("--no-browser", action="store_true", help="do not open the page")
     parser.add_argument("--no-ollama", action="store_true", help="do not start Ollama (the local Qwen model)")
-    parser.add_argument("--share", action="store_true", help="also give it a public https address (free Cloudflare tunnel)")
+    parser.add_argument("--share", action="store_true", help="also give it a public https address (ngrok if NGROK_DOMAIN is set, else a free Cloudflare tunnel)")
     parser.add_argument("--get-voice", action="store_true", help="download the local Kokoro voice (once, about 350 MB), then stop")
     args = parser.parse_args()
     load_settings()
@@ -393,7 +393,7 @@ def main() -> None:
         print("  AI model  key found")
     else:
         print(f"  AI model  NO KEY. Add  LLM_API_KEY=...  to {os.path.relpath(ENV_FILE, ROOT)}  to enable answers.")
-        print("            (read everything, expiry, page numbers and the live guidance work without it)")
+        print("            (read everything, page numbers, the live guidance and the local Qwen model work without it)")
     print(f"  voice     {voice_line()}")
     ollama = None if args.no_ollama else start_ollama()
     if not args.no_ollama and ollama_running():

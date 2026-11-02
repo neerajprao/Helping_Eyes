@@ -1,5 +1,5 @@
 """
-Speed (Phase 5 of markdown/eval_plan.md, NFR-1): the real app (uvicorn server:app) on this Mac, over localhost.
+Speed (Phase 5 of markdown/eval/eval_plan.md, NFR-1): the real app (uvicorn server:app) on this Mac, over localhost.
 
     .venv/bin/python eval/run_latency.py              everything (about 15-20 minutes; Gemini calls are spaced 4.5 s)
     .venv/bin/python eval/run_latency.py --runs 5     a quick try

@@ -958,15 +958,15 @@ What came out:
 | **Item fill** (15) | First version: median 69 %, 47 photos at 75 % or more. Corrected: median 22 %, none at 75 % | The floor had been counted as the item, which would have stopped "Move closer" on 26 photos where the pack was small |
 | **Capture versions** (3.4) | Corrected outline: the untouched photo on 134, the flattened item on 14 | With a real outline a tilted item is straightened before reading; the text the app keeps improved slightly (90.1 % against 89.7 % key-line accuracy), and the answers stayed the same (62.8 %) |
 
-To look at one check at a time, `eval/make_check_folders.py` puts the photos into `eval/data/private/cv_checks/blur_photos`, `glare_photos`, `dark_photos`, `slant_photos` and `outline_photos` (13, 15, 126, 64 and 134 photos), each with only that check's boxes. The full table, and every photo with its boxes, is in [eval_photo_summary.md](eval_photo_summary.md) and `eval_photo_report.md` (kept out of git because it holds the photos' text).
+To look at one check at a time, `eval/make_check_folders.py` puts the photos into `eval/data/private/cv_checks/blur_photos`, `glare_photos`, `dark_photos`, `slant_photos` and `outline_photos` (13, 15, 126, 64 and 134 photos), each with only that check's boxes. The full table, and every photo with its boxes, is in [eval_photo_summary.md](eval/eval_photo_summary.md) and `eval_photo_report.md` (kept out of git because it holds the photos' text).
 
-On 28 October 2026 the photo test was run again on **164 photos** (the 148 above plus 16 food labels, book pages, documents and screens) with the current code and a fixed evaluation date: the app's capture text reached 90.5 % key-line accuracy (character error rate 0.095), and the glare check still never fired. See [eval_results.md](eval_results.md).
+On 28 October 2026 the photo test was run again on **164 photos** (the 148 above plus 16 food labels, book pages, documents and screens) with the current code and a fixed evaluation date: the app's capture text reached 90.5 % key-line accuracy (character error rate 0.095), and the glare check still never fired. See [eval_results.md](eval/eval_results.md).
 
 ---
 
 ## 21. Book mode and live checks on real input
 
-Measured on 28 October 2026 (`eval/run_book.py`, `eval/run_latency.py`); the numbers are in [eval_results.md](eval_results.md).
+Measured on 28 October 2026 (`eval/run_book.py`, `eval/run_latency.py`); the numbers are in [eval_results.md](eval/eval_results.md).
 
 **Five photos of a real book** (4 of them two-page spreads), read with book mode's path:
 

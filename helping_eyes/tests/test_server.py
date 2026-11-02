@@ -178,6 +178,43 @@ def test_tts_endpoint_is_rate_limited():
     assert codes[:-1] == [200] * server.TTS_RATE_LIMIT and codes[-1] == 429
 
 
+
+def test_with_an_access_code_nothing_works_until_the_code_is_entered():
+    server.ACCESS_CODE = "open sesame 42"
+    guest = TestClient(server.app)
+    try:
+        page = guest.get("/", follow_redirects=False)
+        assert page.status_code == 303 and page.headers["location"] == "/login"
+        assert "Access code" in guest.get("/login").text
+        assert guest.get("/api/health").status_code == 200                       # open, for uptime checks
+        assert guest.get("/static/style.css").status_code == 200                 # the sign-in page's own style
+        assert guest.get("/static/app.js").status_code == 401
+        assert guest.post("/api/ask", json={"sid": SID, "question": "read everything"}).status_code == 401
+        try:
+            with guest.websocket_connect(f"/ws/live?sid={uuid.uuid4().hex}") as ws:
+                ws.receive_json()
+            raise AssertionError("expected the live stream to be refused")
+        except Exception as e:                   # noqa: BLE001
+            assert "AssertionError" not in type(e).__name__
+        wrong = guest.post("/login", data={"code": "open sesame"}, follow_redirects=False)
+        assert wrong.status_code == 401 and 'role="alert"' in wrong.text and server.ACCESS_COOKIE not in wrong.cookies
+        right = guest.post("/login", data={"code": " open sesame 42 "}, follow_redirects=False)
+        assert right.status_code == 303 and right.headers["location"] == "/"
+        assert "httponly" in right.headers["set-cookie"].lower() and "max-age=2592000" in right.headers["set-cookie"].lower()
+        assert guest.get("/").status_code == 200 and guest.get("/static/app.js").status_code == 200
+        with guest.websocket_connect(f"/ws/live?sid={uuid.uuid4().hex}") as ws:
+            ws.send_bytes(label_jpeg())
+            assert ws.receive_json()["type"] == "guide"
+        server.ACCESS_CODE = "a new code"                                         # changing the code signs everyone out
+        assert guest.get("/static/app.js").status_code == 401
+        for _ in range(server.SIGN_IN_LIMIT):
+            guest.post("/login", data={"code": "guess"})
+        assert guest.post("/login", data={"code": "a new code"}).status_code == 429   # guessing is slowed down
+    finally:
+        server.ACCESS_CODE = ""
+        server._sign_ins.clear()
+
+
 if __name__ == "__main__":
     tests = [(n, f) for n, f in sorted(globals().items()) if n.startswith("test_") and callable(f)]
     failed = 0

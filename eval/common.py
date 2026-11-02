@@ -35,7 +35,7 @@ from dotenv import load_dotenv  # noqa: E402
 
 load_dotenv(os.path.join(APP, ".env"), override=False)     # before assistant.py reads LLM_API_KEY
 
-EVAL_DATE = datetime.date(2026, 10, 19)                     # decided at Checkpoint 0 (markdown/eval_plan.md)
+EVAL_DATE = datetime.date(2026, 10, 19)                     # decided at Checkpoint 0 (markdown/eval/eval_plan.md)
 SEED = 3235
 RETRIES, RETRY_PAUSE = 3, 30
 GEMINI_SPACING = 4.5                                        # seconds between Gemini calls (free tier, 15 a minute)

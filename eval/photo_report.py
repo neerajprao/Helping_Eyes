@@ -59,8 +59,8 @@ KINDS = {"x_name": "What is it? (name, title)", "x_date": "Dates (best before, u
          "x_detail": "A specific detail (time, phone line, number, step)", "x_instructions": "Instructions or warnings",
          "x_absent": "Something the photo does not say", "x_summary": "What is it about?"}
 SCORED = {"name", "strength", "quantity", "expiry", "expired", "mfg", "batch", "price", "maker", "prescription", "external"}
-REPORT_MD = os.path.join(R.ROOT, "markdown", "eval_photo_report.md")
-SUMMARY_MD = os.path.join(R.ROOT, "markdown", "eval_photo_summary.md")
+REPORT_MD = os.path.join(R.ROOT, "markdown", "eval", "eval_photo_report.md")
+SUMMARY_MD = os.path.join(R.ROOT, "markdown", "eval", "eval_photo_summary.md")
 SUMMARY_JSON = os.path.join(R.EVAL, "results", "photo_eval_summary.json")
 SCORES = os.path.join(R.OUT, "scores")
 
@@ -635,6 +635,6 @@ def _summary_md(s, n):
           "prescription flag in the reference that the photo did not show (the prescription question is now scored only "
           "where Rx, Schedule H or a prescription line is visible).",
           "",
-          "Every photo, with its boxes, OCR text and all answers: `markdown/eval_photo_report.md` (git-ignored, "
+          "Every photo, with its boxes, OCR text and all answers: `markdown/eval/eval_photo_report.md` (git-ignored, "
           "because it holds the full text of the photos).", ""]
     return "\n".join(L)

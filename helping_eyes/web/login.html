@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Helping Eyes – enter the access code</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header>
+    <h1>Helping Eyes</h1>
+  </header>
+
+  <main>
+    <section aria-labelledby="code-heading" class="card sign-in">
+      <h2 id="code-heading">Enter the access code</h2>
+      <p class="tagline">Ask the person who shared this app for the code. This browser remembers it for 30 days.</p>
+      <!--MESSAGE-->
+      <form method="post" action="/login">
+        <label for="code">Access code</label>
+        <div class="row">
+          <input id="code" name="code" type="password" autocomplete="current-password" required autofocus>
+          <button class="primary" type="submit">Enter</button>
+        </div>
+      </form>
+    </section>
+  </main>
+</body>
+</html>

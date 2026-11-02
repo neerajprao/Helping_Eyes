@@ -22,8 +22,11 @@ Settings (environment or .env):
     LLM_API_KEY   key for the language model API (required)
     LLM_MODEL     model name (default gemini-3.1-flash-lite)
     LLM_BASE_URL  any OpenAI-compatible chat API (default: Google Gemini's)
+    ACCESS_CODE   when set, the app asks for this code once per browser (30 days) before anything else works
 """
 
+import hashlib
+import hmac
 import json
 import logging
 import os
@@ -43,7 +46,7 @@ import cv2
 import numpy as np
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.concurrency import run_in_threadpool
-from fastapi.responses import FileResponse, Response, StreamingResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -64,9 +67,69 @@ MAX_SIDE = 1600                # photos are downscaled to this for OCR speed
 RATE_LIMIT = 30                # requests per minute per client
 MAX_SOCKETS = 2                # live streams per client
 _SID = re.compile(r"^[A-Za-z0-9_-]{8,64}$")
+ACCESS_CODE = os.getenv("ACCESS_CODE", "").strip()
+ACCESS_COOKIE = "he_access"
+ACCESS_DAYS = 30               # a browser that entered the code is remembered this long
+SIGN_IN_LIMIT = 5              # wrong codes per minute per client, so the code cannot be guessed quickly
+OPEN_PATHS = {"/login", "/api/health", "/favicon.ico", "/static/style.css", "/static/favicon.svg"}   # the sign-in page's own
 
 app = FastAPI(title="Helping Eyes", docs_url=None, redoc_url=None)
 app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")
+
+
+# ---------------- access code ----------------
+def _access_token() -> str:
+    """What the browser keeps once the code was right: derived from the code, so changing the code signs everyone out."""
+    return hmac.new(ACCESS_CODE.encode(), b"helping-eyes access", hashlib.sha256).hexdigest()
+
+
+def _signed_in(cookies) -> bool:
+    return not ACCESS_CODE or hmac.compare_digest(cookies.get(ACCESS_COOKIE, ""), _access_token())
+
+
+@app.middleware("http")
+async def ask_for_the_access_code(request: Request, call_next):
+    """With ACCESS_CODE set, nothing but the sign-in page and the health check works until the code was entered."""
+    if request.url.path in OPEN_PATHS or _signed_in(request.cookies):
+        return await call_next(request)
+    if request.url.path == "/":
+        return RedirectResponse("/login", status_code=303)
+    return JSONResponse({"detail": "Please enter the access code first."}, status_code=401)
+
+
+_sign_ins: Dict[str, deque] = defaultdict(deque)
+
+
+def _sign_in_page(message: str = "", status: int = 200) -> HTMLResponse:
+    with open(os.path.join(WEB_DIR, "login.html"), encoding="utf-8") as f:
+        page = f.read()
+    alert = f'<p class="alert" role="alert">{message}</p>' if message else ""
+    return HTMLResponse(page.replace("<!--MESSAGE-->", alert), status_code=status, headers={"Cache-Control": "no-store"})
+
+
+@app.get("/login")
+def sign_in_page() -> HTMLResponse:
+    return _sign_in_page()
+
+
+@app.post("/login")
+def sign_in(request: Request, code: str = Form("")) -> Response:
+    if not ACCESS_CODE:
+        return RedirectResponse("/", status_code=303)
+    client, now = _client(request), time.time()
+    tries = _sign_ins[client]
+    while tries and now - tries[0] > 60:
+        tries.popleft()
+    if len(tries) >= SIGN_IN_LIMIT:
+        return _sign_in_page("Too many wrong codes. Please wait a minute and try again.", 429)
+    if not hmac.compare_digest(code.strip().encode(), ACCESS_CODE.encode()):
+        tries.append(now)
+        return _sign_in_page("That code is not right. Please try again.", 401)
+    response = RedirectResponse("/", status_code=303)
+    secure = request.headers.get("x-forwarded-proto", request.url.scheme) == "https"
+    response.set_cookie(ACCESS_COOKIE, _access_token(), max_age=ACCESS_DAYS * 86400, httponly=True, samesite="lax",
+                        secure=secure)
+    return response
 
 
 @app.middleware("http")
@@ -481,6 +544,9 @@ async def live(ws: WebSocket) -> None:
         binary        a JPEG frame -> a "guide" reply (normal mode) or a "book" reply (page turns)
     """
     client = _client(ws)
+    if not _signed_in(ws.cookies):
+        await ws.close(code=1008)
+        return
     if _sockets[client] >= MAX_SOCKETS:
         await ws.close(code=1013)
         return

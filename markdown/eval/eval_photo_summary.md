@@ -115,4 +115,4 @@ Factual questions scored by fixed rules against Claude's reading: **869/1384 = 6
 
 **Scoring check:** two random samples of 40 scored answers were read by hand against the photos. The first found three rule mistakes (a date written "December 31, 2026", "1x10 tablets" against "10 tablets", O against 0 in batch codes), which were fixed before these numbers; the second found 1 of 40 wrong, caused by a prescription flag in the reference that the photo did not show (the prescription question is now scored only where Rx, Schedule H or a prescription line is visible).
 
-Every photo, with its boxes, OCR text and all answers: `markdown/eval_photo_report.md` (git-ignored, because it holds the full text of the photos).
+Every photo, with its boxes, OCR text and all answers: `markdown/eval/eval_photo_report.md` (git-ignored, because it holds the full text of the photos).

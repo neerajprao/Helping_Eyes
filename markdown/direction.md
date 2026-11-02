@@ -2,6 +2,8 @@
 
 What each button on the page does, and what you can say or type.
 
+If the app was shared with an access code, the first page asks for it: type the code and press **Enter** (or the Enter key). The browser remembers it for 30 days.
+
 ## Buttons
 
 | Button | Key | What it does |
