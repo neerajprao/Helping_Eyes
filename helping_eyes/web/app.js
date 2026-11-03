@@ -1081,7 +1081,7 @@ document.addEventListener("keydown", (e) => {
 // Overlay palette. Labels sit on a dark plate (PLATE), so each one is readable on any camera picture: measured on the
 // plate over a white page, idle 8.3:1, detect 9.0:1, hold 6.2:1, ready 6.3:1, problem 5.6:1, white 12.6:1.
 const COLORS = { idle: "#d1d1d6", detect: "#ffd60a", hold: "#ff9f0a", ready: "#30d158", line: "#64d2ff",
-                 problem: "#ff8a84", text: "#ffffff", gutter: "#ffd60a", margin: "#bf5af2", column: "#64d2ff",
+                 problem: "#ff8a84", text: "#ffffff", gutter: "#ffd60a", book: "#ff375f", margin: "#bf5af2", column: "#64d2ff",
                  block: "#30d158", badge: "#004c9f", reading: "rgba(255, 214, 10, 0.35)", word: "#ff9f0a" };
 const PLATE = "rgba(0, 0, 0, 0.8)";
 
@@ -1173,7 +1173,12 @@ function drawBook(ctx, W, H) {
   const turning = !uploadView && (!bookState || bookState.state === "TURNING");
   if (pageLayout && !turning) {
     const L = pageLayout;
-    if (L.gutter) { ctx.strokeStyle = COLORS.gutter; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(L.gutter * W, 0); ctx.lineTo(L.gutter * W, H); ctx.stroke(); }
+    // The book's border (its 4 sides, following its tilt) in one colour, the spine between the pages in another
+    if (L.book) { ctx.strokeStyle = COLORS.book; ctx.lineWidth = 3; poly(ctx, L.book, W, H); }
+    ctx.strokeStyle = COLORS.gutter; ctx.lineWidth = 3; ctx.beginPath();
+    if (L.spine) { ctx.moveTo(L.spine[0][0] * W, L.spine[0][1] * H); ctx.lineTo(L.spine[1][0] * W, L.spine[1][1] * H); }
+    else if (L.gutter) { ctx.moveTo(L.gutter * W, 0); ctx.lineTo(L.gutter * W, H); }
+    ctx.stroke();
     ctx.strokeStyle = COLORS.margin; ctx.lineWidth = 1;
     outlines(ctx, L.margin_quads, L.margins, W, H, 3);
     ctx.strokeStyle = COLORS.column;

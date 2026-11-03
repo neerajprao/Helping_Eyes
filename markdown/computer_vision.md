@@ -54,7 +54,7 @@ The four parts:
 |---|---|---|
 | **A** | What does the text say, and where is each line and word? | `recognize_text`, `find_text_region`, `read_text_enhanced` |
 | **B** | Is the picture good? Can we make it better? | `assess_quality`, `find_page_quad`, `page_fill`, `warp_page`, `estimate_dewarp`, `estimate_skew`, `enhance_tone`, `binarize` |
-| **C** | Book mode: when, where, in what order? | `PageTurnDetector`, `split_spread`, `split_page_parts`, `xy_cut`, `read_page`, `continue_from` |
+| **C** | Book mode: when, where, in what order? | `PageTurnDetector`, `find_book_quad`, `find_spine`, `split_spread`, `split_page_parts`, `xy_cut`, `read_page`, `continue_from` |
 | **D** | Live coaching and the final decision | `LiveGuide`, `BookWatcher`, `BookReader` |
 
 Each part uses the ones before it: D uses C, C uses B, and all use A.
@@ -591,15 +591,26 @@ A book that shifted a bit lines up at some shift → small distance. A new page 
 
 ## 10. Part C: Book mode, where the pages are (the spine)
 
-An open book is a **two-page spread**. The two pages must be read separately (left, then right), so we need the **gutter** (the spine, the valley in the middle). `split_spread()` reports the x position of the spine, or `None` for a single page. It **never assumes the middle**; it needs evidence.
+An open book is a **two-page spread**. The two pages must be read separately (left, then right), so we need the **gutter** (the spine, the valley in the middle). `find_spine()` reports the x position of the spine, or `None` for a single page. First it finds the **book's border** (10.0); then it looks for evidence of the spine inside it (`split_spread()`, steps 10.1 to 10.5); and when there is none, the spine is the **centre of the border**, because the spine of an open book is nearly always there.
 
-### 10.1 Step 1: find the book (`find_book`)
+### 10.0 The book's border (`find_book_quad`)
+
+The whole frame is read once (Apple Vision), then the open book's outline is found as **four corners that follow its tilt**:
+
+1. **Apple's own document detector** (`apple_document_quad`): `VNDetectDocumentSegmentationRequest`, the same one the Files and Notes apps use to outline a sheet when you scan it. It takes about 0.07 s. When it is unsure it can return a sliver or corners that cross over, so its outline is used only when it is convex, every corner is between 60° and 120°, and it holds at least 90 % of the book's text (the centres of the text lines). An outline round only one page of a spread fails that test, which matters: a tilted book is flattened by cropping to its border, so the other page would be lost.
+2. **Otherwise, grown from the text** (`find_item_quad(..., every_piece=True)`): GrabCut starts from the text lines (certainly paper) and grows out by colour, as for a medicine pack (section on the item outline). For a book every piece that holds text is kept, since the fold can cut the paper in two, and the four corners are fitted round all of them.
+
+"The book's text" is the group of lines lying within **30 % of the picture** of each other (`BOOK_GAP`), so both pages count, even an index page whose short entries leave a wide blank before the facing page, while text on things lying around the book does not. Neither way takes a light or patterned cloth for paper; the brightness trick of 10.1 does. On the 5 real book photos (on a yellow bedspread) Apple's detector gave the border on 3 and the text-grown outline on the other 2.
+
+When the border is found: a tilted book is first **flattened by its own four corners** (homography, as in Part B), and the border, not 10.1, decides whether it is a spread (10.2). On screen the border is drawn in **red** and the spine in **yellow**, as a line from the border's top side to its bottom side (`spine_line`) that leans with the book.
+
+### 10.1 Step 1: find the book (`find_book`, only when there is no border)
 
 Same trick as the page finder: blur (21×21), **Otsu** (paper is bright), **close** with a 25×25 square to fill the text, take all big bright blobs (each at least 5 % of the picture, together at least 20 %), and return the **bounding box of them all**. A spine shadow can cut the paper into two halves, which is why it uses all the big blobs together. If nothing is found, use the whole frame.
 
 ### 10.2 Step 2: is it even a spread?
 
-A two-page spread is clearly **wider than tall**. If `book_width < 1.1 × book_height`, it is one page: return `None`.
+A two-page spread is clearly **wider than tall**. If `book_width < 1.1 × book_height` (`SPREAD_MIN`), it is one page: return `None`. With a border, its width and height are the means of its opposite sides.
 
 ### 10.3 Step 3: clue 1 — the spine's shadow
 
@@ -630,7 +641,7 @@ Either clue only counts if **both sides** of the proposed spine hold a real bloc
 - a page with two columns (the gap between columns looks like a spine),
 - a spread with text only on one side.
 
-If neither clue passes: `None`, a single page, and no line is drawn.
+If neither clue passes and there is a border: the spine is the **centre of the border** (the mean x of its four corners). If there is no border either: `None`, a single page, and no line is drawn.
 
 ---
 
@@ -699,7 +710,7 @@ Why this works: it needs no learning, only *"where is there nothing?"*. The OCR 
 `read_page()` does all of Part C for one camera frame. In order:
 
 1. **(If `enhance`) flatten** the frame with the homography if the page is tilted. If the flat version reads nothing, fall back to the frame as the camera saw it.
-2. **Find the spine** → split into left and right page crops.
+2. **Find the book's border and the spine** → flatten a tilted book by its border, split into left and right page crops.
 3. For each page crop:
    - measure and fix **skew** (`estimate_skew`, `rotate_expand`);
    - **dewarp** curved lines and fix tone (`prepare_page`);
@@ -871,7 +882,9 @@ Comparison with the app's own glare test:
 | settle **0.8 s** | `settle_time` | page must be still before reading |
 | fingerprint **80×45**, dilate **9×3** | `signature` | compact layout "fingerprint" |
 | shift **±4** cells, distance **< 0.06** | `layout_distance` | same page, only moved |
-| book aspect **> 1.1** | `split_spread` | a spread is wider than tall |
+| lines within **30 %** of the picture | `find_book_quad` (`BOOK_GAP`) | the book's text: both pages |
+| corners **60°–120°**, holds **≥ 90 %** of the text | `apple_document_quad`, `find_book_quad` | Apple's border is believable |
+| book aspect **> 1.1** | `find_spine`, `split_spread` (`SPREAD_MIN`) | a spread is wider than tall |
 | shadow dip **≥ 12 %** | `split_spread` | spine shadow |
 | quiet strip **≥ 7 %** wide, texture **< 60 %** | `split_spread` | text-free strip |
 | text on each side **≥ 20 %** | `split_spread` | both pages hold text |

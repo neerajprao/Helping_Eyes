@@ -219,6 +219,49 @@ def test_a_spread_with_text_only_on_one_side_gets_no_spine_line():
     assert vision.split_spread(image) is None
 
 
+# ---------------------------------------------------------------- the book's border, and its centre as the spine
+def paper(x1=150, x2=1770, y1=90, y2=990):
+    return np.array([[x1, y1], [x2, y1], [x2, y2], [x1, y2]], np.float32)
+
+
+def test_with_the_border_known_the_evidence_comes_first_then_the_centre():
+    shadowed, mid = spread(shadow=True)
+    plain, _ = spread(shadow=False)                                    # no shadow, narrow inner margins: no evidence
+    border = paper(x2=1790)                                            # its centre is x = 970, the real spine 960
+    assert vision.split_spread(plain) is None
+    assert abs(vision.find_spine(shadowed, border) - mid) <= 25        # the shadow is more exact than the centre
+    assert vision.find_spine(plain, border) == 970                     # no evidence: the centre of the border
+
+
+def test_a_border_taller_than_wide_is_a_single_page_and_gets_no_spine():
+    image = np.full((1080, 1920, 3), 55, np.uint8)
+    assert vision.find_spine(image, paper(x1=560, x2=1360, y1=40, y2=1040)) is None
+
+
+def test_the_spine_line_runs_between_the_borders_top_and_bottom_sides_and_leans_with_it():
+    tilted = np.array([[100, 100], [1100, 140], [1100, 840], [100, 800]], np.float32)
+    top, bottom = vision.spine_line(600, tilted, 1080)
+    assert top == (600.0, 120.0) and bottom == (600.0, 820.0)
+    assert vision.spine_line(600, None, 1080) == [(600.0, 0.0), (600.0, 1079.0)]
+
+
+def test_a_spread_on_a_light_patterned_cloth_gets_a_border_and_is_split_at_its_centre():
+    image, mid = spread(shadow=False)                                  # no evidence of the spine at all
+    cloth = np.full(image.shape, (150, 205, 235), np.uint8)            # a light, checked bedspread under the book
+    cloth[(np.indices(image.shape[:2]).sum(axis=0) // 60) % 2 == 0] = (120, 185, 225)
+    book = np.zeros(image.shape[:2], bool)
+    book[90:990, 150:1770] = True
+    image[~book] = cloth[~book]
+    assert vision.split_spread(image) is None                          # brightness alone finds no spread here
+    text, layout = vision.read_page(image, split=True, enhance=True)
+    assert layout.book_quad is not None and layout.spine is not None and len(layout.pages) == 2
+    xs = [p[0] for p in layout.book_quad]
+    assert min(xs) < 250 and max(xs) > 1670                            # the border is round the book, not the cloth
+    assert all(abs(x - mid) <= 40 for x, _ in layout.spine)
+    shown = vision.layout_json(layout, image.shape[1], image.shape[0])
+    assert len(shown["book"]) == 4 and len(shown["spine"]) == 2 and "river" in text
+
+
 # ---------------------------------------------------------------- page turns
 def page_a():
     image = np.full((360, 640, 3), 240, np.uint8)

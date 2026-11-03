@@ -51,6 +51,7 @@ Keys work when the cursor is not in the question box.
 ## In book mode
 
 - Hold the book open and still; each page is read when it settles.
+- A red border is drawn round the open book and a yellow line down its spine, between the two pages. The left page is read first, then the right one.
 - Turn the page and the next one is read. The app says "Turn the page." when it finishes one.
 - The page number and running title are announced before the page.
 - The line and word being spoken are highlighted on the picture.

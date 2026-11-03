@@ -298,15 +298,15 @@ ITEM_FIT = 0.25      # a four-cornered outline that misses this much of the item
 ITEM_SOLID = 0.85    # the item must fill this much of its convex hull: several products side by side do not
 
 
-def _main_text_group(boxes: List[Box], w: int, h: int) -> List[Box]:
-    """The text lines of the item being shown. Lines lying close together (a gap under ITEM_GAP of the picture) form
+def _main_text_group(boxes: List[Box], w: int, h: int, gap: float = ITEM_GAP) -> List[Box]:
+    """The text lines of the item being shown. Lines lying close together (a gap under `gap` of the picture) form
     a group; the group with the most text wins, each line counted by its area (large print counts more) and by how
     near the middle of the picture it is. Text on things in the background is a separate, smaller group."""
     s = 400 / max(w, h)
     canvas = np.zeros((max(1, round(h * s)), max(1, round(w * s))), np.uint8)
     for x1, y1, x2, y2 in boxes:
         cv2.rectangle(canvas, (int(x1 * s), int(y1 * s)), (int(x2 * s), int(y2 * s)), 255, -1)
-    k = max(3, round(ITEM_GAP * 400)) | 1
+    k = max(3, round(gap * 400)) | 1
     count, labels = cv2.connectedComponents(cv2.dilate(canvas, np.ones((k, k), np.uint8)))
 
     def group(b):
@@ -319,7 +319,8 @@ def _main_text_group(boxes: List[Box], w: int, h: int) -> List[Box]:
     return [b for b in boxes if group(b) == best] or list(boxes)
 
 
-def item_mask(frame: np.ndarray, text_boxes: List[Box], size: int = 320) -> Tuple[Optional[np.ndarray], float]:
+def item_mask(frame: np.ndarray, text_boxes: List[Box], size: int = 320, gap: float = ITEM_GAP,
+              every_piece: bool = False) -> Tuple[Optional[np.ndarray], float]:
     """
     The item that carries the text (a pack, bottle, strip, page ...) as a mask on a small copy of the frame, and the
     scale of that copy. The item is grown from its own text lines with GrabCut, which separates it from the
@@ -335,7 +336,7 @@ def item_mask(frame: np.ndarray, text_boxes: List[Box], size: int = 320) -> Tupl
     if small.ndim == 2:
         small = cv2.cvtColor(small, cv2.COLOR_GRAY2BGR)
     sh, sw = small.shape[:2]
-    boxes = _main_text_group(text_boxes, w, h)
+    boxes = _main_text_group(text_boxes, w, h, gap)
     tx1, ty1 = min(b[0] for b in boxes) * s, min(b[1] for b in boxes) * s
     tx2, ty2 = max(b[2] for b in boxes) * s, max(b[3] for b in boxes) * s
     mx, my = ITEM_GROW * (tx2 - tx1) + 6, ITEM_GROW * (ty2 - ty1) + 6
@@ -367,8 +368,11 @@ def item_mask(frame: np.ndarray, text_boxes: List[Box], size: int = 320) -> Tupl
     count, labels = cv2.connectedComponents(fg)
     if count < 2:
         return None, s
-    best = max(range(1, count), key=lambda i: int(((labels == i) & (seed > 0)).sum()))     # the piece holding the text
-    piece = (labels == best).astype(np.uint8) * 255
+    if every_piece:     # a book: the fold can cut the paper in two, and each page holds text
+        piece = np.isin(labels, [i for i in range(1, count) if ((labels == i) & (seed > 0)).any()]).astype(np.uint8) * 255
+    else:
+        best = max(range(1, count), key=lambda i: int(((labels == i) & (seed > 0)).sum()))     # the piece holding the text
+        piece = (labels == best).astype(np.uint8) * 255
     contours, _ = cv2.findContours(piece, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     filled = np.zeros_like(piece)
     cv2.drawContours(filled, contours, -1, 255, -1)            # holes (dark print, a barcode) belong to the item
@@ -380,21 +384,28 @@ def _overlap_miss(a: np.ndarray, b: np.ndarray) -> float:
     return 1 - np.logical_and(a > 0, b > 0).sum() / max(np.logical_or(a > 0, b > 0).sum(), 1)
 
 
-def find_item_quad(frame: np.ndarray, text_boxes: List[Box]) -> Optional[np.ndarray]:
+def find_item_quad(frame: np.ndarray, text_boxes: List[Box], gap: float = ITEM_GAP,
+                   every_piece: bool = False) -> Optional[np.ndarray]:
     """
     The outline of the item that carries the text, as 4 corners (top-left, top-right, bottom-right, bottom-left) in
     frame pixels, or None. The item mask (item_mask) is simplified to four corners with approxPolyDP when that is a
     good fit, otherwise the smallest rotated rectangle around it is used (packs are rectangular). Nothing is returned
     when the item is not a solid four-sided shape (several products side by side, a crumpled strip): no outline is
-    better than a wrong one.
+    better than a wrong one. gap: how far apart text lines may be and still belong to the item (BOOK_GAP for a book);
+    every_piece: the outline goes round every piece of the item that holds text (both pages of a book), not only the
+    biggest.
     """
-    mask, s = item_mask(frame, text_boxes)
+    mask, s = item_mask(frame, text_boxes, gap=gap, every_piece=every_piece)
     if mask is None:
         return None
     contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    contour = max(contours, key=cv2.contourArea)
-    hull = cv2.convexHull(contour)
-    if cv2.contourArea(hull) <= 0 or cv2.contourArea(contour) < ITEM_SOLID * cv2.contourArea(hull):
+    if every_piece:
+        points, area = np.vstack(contours), float((mask > 0).sum())
+    else:
+        points = max(contours, key=cv2.contourArea)
+        area = cv2.contourArea(points)
+    hull = cv2.convexHull(points)
+    if cv2.contourArea(hull) <= 0 or area < ITEM_SOLID * cv2.contourArea(hull):
         return None
 
     def miss(quad):
@@ -993,6 +1004,13 @@ class PageTurnDetector:
 # =====================================================================
 # 2. Two-page spread splitting (gutter detection)
 # =====================================================================
+BOOK_GAP = 0.3       # text lines closer than this (a fraction of the picture) belong to the same book: both pages,
+                     # even an index page whose short entries leave a wide blank before the facing page
+BOOK_CORNER = (60, 120)   # degrees: every corner of a believable book outline (Apple's, when unsure, can be a sliver)
+SPREAD_MIN = 1.1     # a book this many times wider than tall is a two-page spread
+
+
+
 def _runs(mask: np.ndarray) -> List[Tuple[int, int]]:
     """Start/end (exclusive) of each run of True values."""
     padded = np.concatenate([[False], mask, [False]])
@@ -1035,13 +1053,13 @@ def texture_profile(gray: np.ndarray, window: int = 15) -> np.ndarray:
     return np.convolve(profile, np.ones(k) / k, mode="same")
 
 
-def split_spread(image: np.ndarray, min_depth: float = 0.12) -> Optional[int]:
+def split_spread(image: np.ndarray, min_depth: float = 0.12, book: Optional[Box] = None) -> Optional[int]:
     """
     Find the gutter (spine) of an open book and return its x position, or
     None for a single page. A spine is only reported when the picture shows
-    evidence of one; it is never assumed to be in the middle.
+    evidence of one; find_spine() adds the centre of the book's outline when it does not.
 
-    1. Find the book (the paper). A two-page spread is clearly wider than
+    1. Find the book (the paper), or take `book` when its outline is known. A two-page spread is clearly wider than
        tall; a single page is not.
     2. The spine's shadow: a half-open book casts a dark valley in the
        column brightness profile. When it's clear, it's the most precise clue.
@@ -1055,9 +1073,10 @@ def split_spread(image: np.ndarray, min_depth: float = 0.12) -> Optional[int]:
        of text has no spine, and no line is drawn.
     """
     h, w = image.shape[:2]
-    bx1, by1, bx2, by2 = find_book(image)
+    bx1, by1, bx2, by2 = book or find_book(image)
+    bx1, by1, bx2, by2 = max(0, bx1), max(0, by1), min(w, bx2), min(h, by2)
     bw, bh = bx2 - bx1, by2 - by1
-    if bw < 1.1 * bh:
+    if bw < SPREAD_MIN * bh:
         return None                      # taller than wide: a single page
     gray = cv2.cvtColor(image[by1:by2, bx1:bx2], cv2.COLOR_BGR2GRAY)
     lo, hi = int(bw * 0.3), int(bw * 0.7)
@@ -1092,6 +1111,108 @@ def split_spread(image: np.ndarray, min_depth: float = 0.12) -> Optional[int]:
             return bx1 + x
 
     return None                          # no evidence of a spine: a single page
+
+
+def apple_document_quad(frame: np.ndarray) -> Optional[np.ndarray]:
+    """
+    The sheet Apple's own document detector sees (VNDetectDocumentSegmentationRequest, what the Files and Notes
+    scanners use, macOS 12 or later), as 4 corners (top-left, top-right, bottom-right, bottom-left) in frame pixels,
+    or None when it finds nothing or its outline is not a proper four-sided shape (when unsure it can return corners
+    that cross over).
+    """
+    import Foundation
+    import Vision
+    if not hasattr(Vision, "VNDetectDocumentSegmentationRequest"):
+        return None
+    h, w = frame.shape[:2]
+    ok, png = cv2.imencode(".png", frame)
+    if not ok:
+        return None
+    data = Foundation.NSData.dataWithBytes_length_(png.tobytes(), len(png))
+    handler = Vision.VNImageRequestHandler.alloc().initWithData_options_(data, None)
+    request = Vision.VNDetectDocumentSegmentationRequest.alloc().init()
+    ok, _ = handler.performRequests_error_([request], None)
+    results = list(request.results() or []) if ok else []
+    if not results:
+        return None
+    quad = np.array(_vision_quad(results[0], w, h), np.float32)
+    if not cv2.isContourConvex(quad.reshape(-1, 1, 2)) or cv2.contourArea(quad) < 0.05 * w * h:
+        return None
+    for i in range(4):
+        a, b = quad[i - 1] - quad[i], quad[(i + 1) % 4] - quad[i]
+        angle = np.degrees(np.arccos(np.clip(np.dot(a, b) / max(np.linalg.norm(a) * np.linalg.norm(b), 1e-6), -1, 1)))
+        if not BOOK_CORNER[0] <= angle <= BOOK_CORNER[1]:
+            return None
+    return quad
+
+
+def _holds_book_text(quad: np.ndarray, boxes: List[Box]) -> bool:
+    """Does the outline hold (nearly) all of the book's text? An outline round one page of a spread does not: the
+    other page would be cut off when the book is flattened."""
+    poly = quad.reshape(-1, 1, 2).astype(np.float32)
+    inside = sum(cv2.pointPolygonTest(poly, ((b[0] + b[2]) / 2, (b[1] + b[3]) / 2), False) >= 0 for b in boxes)
+    return inside >= 0.9 * len(boxes)
+
+
+def find_book_quad(frame: np.ndarray) -> Optional[np.ndarray]:
+    """
+    The open book's outline as 4 corners (top-left, top-right, bottom-right, bottom-left) in frame pixels, following
+    its tilt, or None. Apple's document detector is asked first (apple_document_quad); when it is unsure, the outline
+    is grown from the text of both pages with GrabCut (find_item_quad). Either way a light or patterned surface under
+    the book is not taken for paper, as the brightness threshold of find_book() does, and the outline must hold the
+    book's text (lines up to BOOK_GAP apart count as one book). Costs one OCR pass of the whole frame (about 0.3 s).
+    """
+    h, w = frame.shape[:2]
+    lines = [l for l in recognize_text(frame) if l.text.strip()]
+    if len(lines) < 3:
+        return None
+    boxes = [l.box for l in lines]
+    book_text = _main_text_group(boxes, w, h, BOOK_GAP)          # not text on things lying around the book
+    try:
+        quad = apple_document_quad(frame)
+    except Exception as e:
+        logger.warning(f"Apple's document detector failed: {e}")
+        quad = None
+    if quad is not None and _holds_book_text(quad, book_text):
+        return _order_corners(quad)
+    quad = find_item_quad(frame, boxes, gap=BOOK_GAP, every_piece=True)
+    return quad if quad is not None and _holds_book_text(quad, book_text) else None
+
+
+def _quad_size(quad) -> Tuple[float, float]:
+    """(width, height) of a 4-cornered outline: the means of its opposite sides."""
+    tl, tr, br, bl = np.asarray(quad, np.float32)
+    return ((np.linalg.norm(tr - tl) + np.linalg.norm(br - bl)) / 2,
+            (np.linalg.norm(bl - tl) + np.linalg.norm(br - tr)) / 2)
+
+
+def find_spine(image: np.ndarray, book=None) -> Optional[int]:
+    """
+    x of the spine, or None for a single page. Without the book's outline only the picture's evidence counts
+    (split_spread). With it (4 corners in this image), the outline decides whether this is a spread (wider than tall)
+    and the evidence is looked for inside it; when there is none, the spine is the centre of the outline: the spine
+    of an open book is nearly always there.
+    """
+    if book is None:
+        return split_spread(image)
+    width, height = _quad_size(book)
+    if width < SPREAD_MIN * height:
+        return None                      # a single page
+    found = split_spread(image, book=tuple(int(round(v)) for v in quad_bounds(book)))
+    return found if found is not None else int(round(float(np.mean(np.asarray(book, np.float32)[:, 0]))))
+
+
+def spine_line(x: int, book, height: int) -> Quad:
+    """The spine as a line (top point, bottom point): from the book outline's top side to its bottom side, or the
+    picture's full height when there is no outline."""
+    if book is None:
+        return [(float(x), 0.0), (float(x), float(height - 1))]
+
+    def y_at(a, b):
+        (ax, ay), (bx, by) = a, b
+        return float(ay if bx == ax else ay + (by - ay) * (x - ax) / (bx - ax))
+    tl, tr, br, bl = [tuple(map(float, p)) for p in book]
+    return [(float(x), y_at(tl, tr)), (float(x), y_at(bl, br))]
 
 
 # =====================================================================
@@ -1305,6 +1426,8 @@ class LineSpan:
 class PageLayout:
     """Everything found in one frame, in full-frame pixel coordinates (for drawing)."""
     gutter_x: Optional[int] = None
+    book_quad: Optional[Quad] = None                  # the open book's outline (4 corners), when it was found
+    spine: Optional[Quad] = None                      # the spine as a line (top point, bottom point), when split
     columns: List[Box] = field(default_factory=list)
     blocks: List[Box] = field(default_factory=list)   # paragraphs, in reading order
     margins: List[Box] = field(default_factory=list)  # headers / footers (not read aloud)
@@ -1388,10 +1511,15 @@ def _page_back(matrix: Optional[np.ndarray], dx: int):
     return point
 
 
-def _read_flat_page(frame: np.ndarray, split: bool, enhance: bool) -> Tuple[str, PageLayout]:
-    """read_page() on one image: split the spread, OCR each page, order the text (see read_page)."""
+def _read_flat_page(frame: np.ndarray, split: bool, enhance: bool, book=None) -> Tuple[str, PageLayout]:
+    """read_page() on one image: split the spread, OCR each page, order the text (see read_page).
+    book: the book's outline in this image (4 corners), or None when it was not found."""
     h, w = frame.shape[:2]
-    layout = PageLayout(gutter_x=split_spread(frame) if split else None)
+    layout = PageLayout(gutter_x=find_spine(frame, book) if split else None)
+    if book is not None:
+        layout.book_quad = [tuple(map(float, p)) for p in book]
+    if layout.gutter_x:
+        layout.spine = spine_line(layout.gutter_x, book, h)
     pages = [(0, layout.gutter_x), (layout.gutter_x, w)] if layout.gutter_x else [(0, w)]
 
     report = assess_quality(frame) if enhance else None
@@ -1457,6 +1585,10 @@ def _unproject_layout(layout: PageLayout, matrix: np.ndarray, flat_height: int) 
 
     if layout.gutter_x:
         layout.gutter_x = int(point(layout.gutter_x, flat_height / 2)[0])
+    if layout.book_quad:
+        layout.book_quad = map_quad(layout.book_quad, point)
+    if layout.spine:
+        layout.spine = map_quad(layout.spine, point)          # a straight line stays straight, slanted with the book
     layout.columns, layout.column_quads = both(layout.columns, layout.column_quads)
     layout.blocks, layout.block_quads = both(layout.blocks, layout.block_quads)
     layout.margins, layout.margin_quads = both(layout.margins, layout.margin_quads)
@@ -1483,16 +1615,23 @@ def read_page(frame: np.ndarray, split: bool = True, enhance: bool = False) -> T
     an angle is flattened with a homography, curved lines (a page bending into the
     spine) are straightened, and dark / shadowed / glary frames are tone-corrected.
     Boxes are mapped back, so the layout is still in camera coordinates.
+
+    With split=True the book's outline is found first (find_book_quad): a tilted book is flattened by its own
+    corners, and the spine is the evidence inside the outline or else its centre (find_spine). The layout keeps the
+    outline (book_quad) and the spine line, for the on-screen border.
     """
+    book = find_book_quad(frame) if split else None
     if enhance:
-        flat, matrix = warp_page(frame)
+        flat, matrix = warp_page(frame, quad=book) if book is not None else warp_page(frame)
         if matrix is not None:
-            text, layout = _read_flat_page(flat, split, enhance)
+            fh, fw = flat.shape[:2]
+            flat_book = np.array([[0, 0], [fw - 1, 0], [fw - 1, fh - 1], [0, fh - 1]], np.float32) if book is not None else None
+            text, layout = _read_flat_page(flat, split, enhance, flat_book)
             if text.strip():
                 _unproject_layout(layout, matrix, flat.shape[0])
                 return text, layout
             # nothing read from the flattened page: fall back to the frame as the camera saw it
-    return _read_flat_page(frame, split, enhance)
+    return _read_flat_page(frame, split, enhance, book)
 
 
 # =====================================================================
@@ -1961,6 +2100,8 @@ def layout_json(layout: PageLayout, w: int, h: int) -> dict:
     outlines that follow a slanted page; the page draws those when they are there."""
     return {
         "gutter": round(layout.gutter_x / w, 4) if layout.gutter_x else None,
+        "book": _norm_quad(layout.book_quad, w, h) if layout.book_quad else None,
+        "spine": _norm_quad(layout.spine, w, h) if layout.spine else None,
         "columns": [_norm(b, w, h) for b in layout.columns],
         "blocks": [_norm(b, w, h) for b in layout.blocks],
         "margins": [_norm(b, w, h) for b in layout.margins],
