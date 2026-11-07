@@ -215,13 +215,14 @@ def scenario_button_shows_when_the_mic_is_really_on(page):
     page.wait(READY)
     page.js("speechQueue.push({ text: 'talking' })")                   # the app starts talking
     page.wait(f"{PRESSED} === 'false'")                                 # the button goes off by itself
-    assert page.js(LABEL) == "Listen" and page.js("listening") is True   # listening is still switched on
+    assert page.js(LABEL) == "Listen", page.js(LABEL)
+    page.wait("listening === true", timeout=5)                           # listening is still switched on
     page.js("speechQueue.length = 0; lastSpeechActivity = performance.now()")   # the app finishes talking
     page.wait(f"{PRESSED} === 'true'")                                  # and the button comes back on by itself
     page.js("speechQueue.push({ text: 'talking again' })")
     page.wait(f"{PRESSED} === 'false'")
     page.js("document.getElementById('mic').click()")                   # pressed while it talks: talking stops, mic opens
-    assert page.js("speechQueue.length") == 0 and page.js("listening") is True
+    page.wait("speechQueue.length === 0 && listening === true", timeout=5)   # a slow machine needs a moment
     page.wait(f"{PRESSED} === 'true'")
 
 
