@@ -3,7 +3,9 @@
 fastapi==0.141.1
 uvicorn[standard]==0.54.0
 python-multipart==0.0.32
-opencv-python-headless==4.13.0.92
+# opencv-python, not -headless: rapidocr (below) needs opencv-python, and without this pin pip adds the newest one
+# (5.x) next to a headless 4.x; both install the same cv2 module, so the tests ran on a different OpenCV than the app
+opencv-python==4.13.0.92
 numpy==2.4.2
 pyobjc-framework-Vision>=12.0; sys_platform == "darwin"
 pyobjc-framework-Quartz>=12.0; sys_platform == "darwin"

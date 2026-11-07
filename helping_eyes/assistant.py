@@ -311,7 +311,7 @@ _ANY_DATE = re.compile(
     r")(?!\d)(?![/.]\d)",
     re.I,
 )
-_LATEST_YEAR = 2045                     # a "date" past this is a number, not a date on a pack
+EXPIRY_YEARS_AHEAD = 8                  # no pack is good for longer: a "date" further ahead is a number, not a date
 
 
 def printed_dates(text: str) -> List[Tuple[str, date]]:
@@ -332,7 +332,7 @@ def printed_dates(text: str) -> List[Tuple[str, date]]:
                 last = date(year, month, calendar.monthrange(year, month)[1])
         except (ValueError, KeyError):
             continue
-        if not 2000 <= last.year <= _LATEST_YEAR:
+        if not 2000 <= last.year <= date.today().year + EXPIRY_YEARS_AHEAD:
             continue
         printed = " ".join(m.group(0).split())
         if printed.lower() not in seen:
@@ -500,7 +500,9 @@ class DocAssistant:
         Otherwise the expiry date is the latest date printed as a rule (it comes after the manufacturing date): the
         small local model is given that date to put into words; the online model is given every date with its check,
         so it can use the text to choose, with that rule as its guide. Measured on 34 real packs whose expiry date is
-        printed apart from its label: Gemini choosing 23 right, the latest-date rule 20, Qwen choosing alone 11.
+        printed apart from its label (8 of them with the real date not read at all): right expiry date, Qwen choosing
+        alone 11, Qwen given the latest date 21, Gemini 22; right expired / not expired verdict, Qwen 26, Gemini 26.
+        Before this, both said there was no expiry date on all 34.
         """
         verdict = expiry_checks(self.document)
         dates = printed_dates(self.document)
