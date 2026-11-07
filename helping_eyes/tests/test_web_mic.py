@@ -348,6 +348,83 @@ def scenario_the_shutter_button_takes_the_photo_now(page):
     page.wait("document.getElementById('shutter').hidden")                  # the shutter is gone then
 
 
+def scenario_book_mode_shows_only_the_camera_stop_and_book_mode(page):
+    shown = "(id) => { const e = document.getElementById(id); return !!e && e.getClientRects().length > 0; }"
+    where = "(id) => document.getElementById(id).parentElement.className"
+    hidden_in_book = ["question", "answer", "status", "model", "mic", "read-all", "repeat", "capture", "newitem"]
+    assert page.js(f"({where})('stop')") == "row" and not page.js(f"({shown})('book-panel')")
+    page.js("setMode('book')")
+    assert page.js(f"({where})('stop')") == "book-controls" and page.js(f"({where})('bookmode')") == "book-controls"
+    assert page.js(f"({shown})('stop') && ({shown})('bookmode') && ({shown})('upload-button') && ({shown})('continue') "
+                   f"&& ({shown})('video')")
+    # Book mode and Upload photo first, Stop and Continue last
+    order = page.js("[...document.querySelectorAll('.book-controls > :is(button, label)')].filter((e) => e.getClientRects().length)"
+                    ".map((e) => e.id)")
+    assert order == ["bookmode", "upload-button", "stop", "continue"], order
+    assert not any(page.js(f"({shown})('{i}')") for i in hidden_in_book)          # no Ask or Answer card, nothing under the camera
+    assert page.js("document.getElementById('bookmode').getAttribute('aria-pressed')") == "true"
+    page.js("setMode('normal')")                                                    # the usual layout comes back as it was
+    assert not page.js(f"({shown})('book-panel')") and all(page.js(f"({shown})('{i}')") for i in hidden_in_book)
+    assert page.js("document.getElementById('repeat').nextElementSibling.id === 'stop' && "
+                   "document.getElementById('newitem').nextElementSibling.id === 'bookmode'")
+
+
+def scenario_continue_reads_on_from_the_sentence_where_reading_stopped(page):
+    page.wait("cameraReady")
+    page.js("setMode('book')")
+    time.sleep(1.5)
+    page.wait("!bookBusy")
+    # A page being read: the voice has got to "four", in the second sentence
+    page.js("pageText = 'One two. Three four five. Six seven.'; pageChunks = [{start: 0, text: pageText}]; "
+            "reading = true; turnPrompted = false; readPos = 0; speechPos = 15; window.__spoken.length = 0")
+    page.js("document.getElementById('stop').click()")
+    assert page.js("stoppedAt") == 15 and page.js("turnPrompted") is True        # stopped mid-page: no "Turn the page."
+    page.js("document.getElementById('continue').click()")
+    page.wait("window.__spoken.length > 0")
+    assert page.js("window.__spoken[0]") == "Three four five. Six seven.", page.js("window.__spoken")
+    # Stopped at the very end (or never stopped): nothing left, and it says so
+    page.js("stopSpeaking(); stoppedAt = null; reading = false; window.__spoken.length = 0")
+    page.js("document.getElementById('continue').click()")
+    page.wait("window.__spoken.length > 0")
+    assert page.js("window.__spoken[0]").startswith("That was the end of the page")
+
+
+def scenario_single_key_shortcuts_press_their_buttons(page):
+    page.wait("cameraReady")
+    expected = {"c": "capture", "n": "newitem", "b": "bookmode", "a": "read-all", "r": "repeat", "s": "stop", "l": "mic"}
+    page.js("window.__pressed = []; for (const id of " + json.dumps(sorted(set(expected.values()))) + ") "
+            "document.getElementById(id).addEventListener('click', (e) => { window.__pressed.push(id); e.stopImmediatePropagation(); }, true)")
+    for key, button in expected.items():
+        page.js("window.__pressed.length = 0; document.activeElement && document.activeElement.blur(); "
+                f"document.body.dispatchEvent(new KeyboardEvent('keydown', {{key: '{key.upper()}', bubbles: true}}))")
+        assert page.js("window.__pressed") == [button], (key, page.js("window.__pressed"))
+        assert page.js(f"document.getElementById('{button}').getAttribute('aria-keyshortcuts')") == key.upper()
+    for old in ("m", "p"):                                                  # the old keys do nothing now
+        page.js(f"window.__pressed.length = 0; document.body.dispatchEvent(new KeyboardEvent('keydown', {{key: '{old}', bubbles: true}}))")
+        assert page.js("window.__pressed") == [], old
+
+
+def scenario_book_mode_zooms_in_on_the_book(page):
+    page.wait("cameraReady && video.clientWidth > 0")
+    page.js("setMode('book')")
+    book = {"book": [[0.3, 0.3], [0.7, 0.32], [0.7, 0.7], [0.3, 0.68]], "blocks": [], "margins": [], "lines": []}
+    page.js(f"setBookZoom({json.dumps(book)})")
+    assert page.js("video.style.transform").endswith(")") and page.js("view !== null")
+    room = page.js("[video.parentElement.clientWidth, video.parentElement.clientHeight - BOOK_BAR]")
+    width, height = page.js("view.width"), page.js("view.height")
+    assert width <= room[0] + 1 and height <= room[1] + 1                     # the book fits above the status bar
+    assert abs(width - room[0]) < 1 or abs(height - room[1]) < 1               # and fills the view one way
+    # The enlarged picture and the overlay line up: the book's left edge is at the same place on both
+    on_video = page.js("(() => { const r = video.getBoundingClientRect(); return r.left + 0.3 * r.width; })()")
+    on_overlay = page.js("overlay.getBoundingClientRect().left + view.left + (0.3 - view.x1) * view.W")
+    assert abs(on_video - on_overlay) < 1, (on_video, on_overlay)
+    page.js("setBookZoom({book: null, blocks: [], margins: [], lines: []})")  # nothing found: the whole picture
+    assert page.js("video.style.transform") == "" and page.js("view") is None
+    page.js(f"setBookZoom({json.dumps(book)})")
+    page.js("setMode('normal')")                                              # normal mode is never zoomed
+    assert page.js("video.style.transform") == "" and page.js("view") is None
+
+
 def scenario_the_camera_still_starts_when_there_is_no_microphone(page):
     page.js("window.__noMic = true; window.__media.length = 0; stopCamera()")
     page.js("startCamera(true)")
@@ -395,6 +472,22 @@ def test_a_photo_with_no_text_brings_the_camera_back_at_once():
 
 def test_the_shutter_button_takes_the_photo_now():
     run_scenario(scenario_the_shutter_button_takes_the_photo_now)
+
+
+def test_book_mode_shows_only_the_camera_and_the_stop_and_book_mode_buttons():
+    run_scenario(scenario_book_mode_shows_only_the_camera_stop_and_book_mode)
+
+
+def test_continue_reads_on_from_the_sentence_where_reading_stopped():
+    run_scenario(scenario_continue_reads_on_from_the_sentence_where_reading_stopped)
+
+
+def test_single_key_shortcuts_press_their_buttons():
+    run_scenario(scenario_single_key_shortcuts_press_their_buttons)
+
+
+def test_book_mode_enlarges_the_book_to_fill_the_camera_view():
+    run_scenario(scenario_book_mode_zooms_in_on_the_book)
 
 
 def test_the_camera_still_starts_when_there_is_no_microphone():

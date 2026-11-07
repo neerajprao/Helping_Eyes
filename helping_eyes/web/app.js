@@ -349,6 +349,12 @@ function shownIndex(shown, spoken, spokenIndex) {
 
 // Stop talking (and keep any answer that is still arriving)
 function silence() {
+  // Book mode: reading stopped mid-page (Stop, a question, ...). Keep the place for Continue, and do not say
+  // "Turn the page." as if the page were done.
+  if (mode === "book" && reading && pageText) {
+    stoppedAt = Math.max(readPos, speechPos ?? 0);
+    turnPrompted = true;
+  }
   speechQueue.length = 0;
   soundBlocked = null;
   if (speakingNow && speakingNow.stop) speakingNow.stop();      // its timers must not fire into the next sentence
@@ -730,10 +736,33 @@ let reading = false;          // the page is being read aloud
 let turnPrompted = true;      // "Turn the page." already said for this page
 let bookBusy = false;
 let pendingTurn = false;      // a page turn was seen while reading: read the new page when this one is done
+let pageChunks = [];          // the page's spoken pieces from the server: {start, text}, start = offset in pageText
+let stoppedAt = null;         // where reading was stopped mid-page (Continue carries on there), or null
 
 function resetBook() {
   pageText = ""; pageLayout = null; pageLabel = ""; readPos = 0; lastChunkStart = 0;
-  reading = false; turnPrompted = true; bookState = null;
+  reading = false; turnPrompted = true; bookState = null; pageChunks = []; stoppedAt = null;
+  setBookZoom(null);            // the whole camera picture again
+}
+
+// Book mode shows only the camera and, beside it, Book mode, Upload photo (and Back to camera while a photo is shown),
+// then Stop and Continue last. The buttons themselves are moved (not copied), so their handlers, shortcuts and
+// pressed state stay the same; a marker keeps each one's usual place. Continue lives in the panel.
+const bookControls = ["bookmode", "upload", "upload-button", "back-to-camera", "stop"].map((id) => {
+  const button = $(id), home = document.createComment(id);
+  button.before(home);
+  return { button, home };
+});
+
+function showBookLayout(book) {
+  const focused = document.activeElement;
+  const panel = $("book-panel").querySelector(".book-controls");
+  for (const { button, home } of bookControls) {
+    if (book) panel.insertBefore(button, $("continue")); else home.after(button);
+  }
+  document.body.classList.toggle("book", book);
+  $("book-panel").hidden = !book;
+  if (bookControls.some(({ button }) => button === focused)) focused.focus();   // a moved button loses the focus
 }
 
 function setMode(next) {
@@ -741,6 +770,7 @@ function setMode(next) {
   mode = next;
   guide = null;
   resetBook();
+  showBookLayout(mode === "book");
   $("bookmode").setAttribute("aria-pressed", String(mode === "book"));
   $("capture").firstChild.textContent = mode === "book" ? "Read this page " : "Capture now ";
   wsSend({ type: "mode", mode });
@@ -768,9 +798,33 @@ function bookTick(reply, fresh) {
 }
 
 function speakChunks(chunks) {
+  stoppedAt = null;
   for (const c of chunks) { say(c.text, { start: c.start }); lastChunkStart = c.start; }
   reading = chunks.length > 0;
 }
+
+// Continue: read the rest of the page from the start of the sentence where reading was stopped. Uses the page text
+// already here, so the book need not be in view.
+function continueReading() {
+  if (mode !== "book") return;
+  if (!pageText) return say("No page has been read yet. Hold the book open in front of the camera.");
+  if (bookBusy || (reading && isSpeaking())) return;                  // reading already
+  const from = stoppedAt;
+  if (from === null || !/\w/.test(pageText.slice(from))) return say("That was the end of the page. Turn the page for the next one.");
+  const piece = pageChunks.filter((c) => c.start <= from).pop();
+  const floor = piece ? piece.start : 0;
+  const before = pageText.slice(floor, from).match(/^[\s\S]*[.!?]["'’”)\]]?\s+/);   // back to the sentence's start
+  const start = before ? floor + before[0].length : floor;
+  let chunks = pageChunks.filter((c) => c.start + c.text.length > start)
+    .map((c) => (c.start >= start ? c : { start, text: pageText.slice(start, c.start + c.text.length) }));
+  if (!chunks.length) chunks = [{ start, text: pageText.slice(start) }];
+  stopSpeaking();
+  readPos = start;
+  speakChunks(chunks);
+  turnPrompted = false;
+  setStatus("Continuing the page.");
+}
+$("continue").addEventListener("click", continueReading);
 
 // The page view became steady (a page turn or the view moved): read it on the server, then speak
 async function handleBookEvent(event) {
@@ -793,6 +847,7 @@ async function handleBookEvent(event) {
 
     if (r.action === "new" || r.action === "resume") {
       pageText = r.text; pageLayout = r.layout; pageLabel = r.label || "";
+      setBookZoom(r.layout);
       answerEl.innerHTML = "";
       hideOffer();
       showCaptured({ text: r.text, label: r.label });
@@ -805,15 +860,18 @@ async function handleBookEvent(event) {
         readPos = r.from_pos;
         setStatus("Same words in view: continuing.");
       }
+      pageChunks = r.chunks || [];
       speakChunks(r.chunks);
       turnPrompted = false;
     } else if (r.action === "nothing_new") {
       pageText = r.text; pageLayout = r.layout; pageLabel = r.label || "";
+      setBookZoom(r.layout);
       readPos = pageText.length;
       setStatus("Same words in view: nothing new to read.");
     } else if (r.action === "no_text") {
       say("I can't see any text on this page.");
       setStatus("No text on this page.");
+      setBookZoom(null);          // the book left the view: show the whole camera picture, so it can be found again
     }
     // "keep": the same page barely moved while reading: nothing changes
   } catch (err) {
@@ -1039,7 +1097,7 @@ $("model").addEventListener("change", () => {
 });
 
 // ================================================================ settings
-const SHORTCUTS = { c: "capture", r: "newitem", b: "bookmode", a: "read-all", p: "repeat", s: "stop", m: "mic" };
+const SHORTCUTS = { c: "capture", n: "newitem", b: "bookmode", a: "read-all", r: "repeat", s: "stop", l: "mic" };
 let shortcutsOn = true;
 function stored(name, fallback) { try { const v = localStorage.getItem(name); return v === null ? fallback : v === "1"; } catch (err) { return fallback; } }
 function store(name, on) { try { localStorage.setItem(name, on ? "1" : "0"); } catch (err) { /* storage blocked */ } }
@@ -1099,14 +1157,58 @@ function plateText(ctx, text, x, y, color, font) {
   ctx.fillText(text, x, y);
 }
 
+// Book mode zoom: once a page is read, the picture is enlarged so the book (the border the server found round it,
+// or else the page's text) fills the camera view, and everything around it is masked, so a tester can read the words.
+// Only what is shown is scaled (a CSS transform); the frames sent to the server are still the whole camera picture.
+let bookZoom = null;           // [x1, y1, x2, y2]: the part of the picture shown, as fractions of it (null: all of it)
+let view = null;               // where that part is drawn on the overlay, and the whole picture's size at that scale
+const ZOOM_MARGIN = 0.02;      // a little room round the book, so its edges are not cut
+const BOOK_BAR = 40;           // height of the book-mode status bar at the bottom of the camera view (px)
+
+function zoomBox(L) {
+  if (!L) return null;
+  let xs, ys;
+  if (L.book) { xs = L.book.map((p) => p[0]); ys = L.book.map((p) => p[1]); }
+  else {
+    const boxes = [...L.blocks, ...L.margins, ...L.lines.map((l) => l.box)];
+    if (!boxes.length) return null;
+    xs = boxes.flatMap((b) => [b[0], b[2]]); ys = boxes.flatMap((b) => [b[1], b[3]]);
+  }
+  const box = [Math.max(0, Math.min(...xs) - ZOOM_MARGIN), Math.max(0, Math.min(...ys) - ZOOM_MARGIN),
+               Math.min(1, Math.max(...xs) + ZOOM_MARGIN), Math.min(1, Math.max(...ys) + ZOOM_MARGIN)];
+  return box[2] - box[0] > 0.05 && box[3] - box[1] > 0.05 ? box : null;
+}
+
+function setBookZoom(layout) {
+  bookZoom = mode === "book" ? zoomBox(layout) : null;
+  sizeOverlay();
+}
+
 function sizeOverlay() {
   const dpr = window.devicePixelRatio || 1;
   const el = uploadView ? still : video;
+  const box = el.parentElement;
+  const ox = el.offsetLeft, oy = el.offsetTop, dw = el.clientWidth, dh = el.clientHeight;
+  view = null;
+  video.style.transform = still.style.transform = "";
+  if (bookZoom && mode === "book" && dw > 0 && dh > 0) {
+    // Scale the picture so the zoomed part fits the camera box above the status bar, centred, then draw the overlay
+    // over the whole box (the bar then never covers the book's last lines or its page numbers)
+    const [x1, y1, x2, y2] = bookZoom, CW = box.clientWidth, CH = box.clientHeight, room = CH - BOOK_BAR;
+    const cw = (x2 - x1) * dw, ch = (y2 - y1) * dh, s = Math.min(CW / cw, room / ch);
+    const left = (CW - cw * s) / 2, top = (room - ch * s) / 2;
+    el.style.transformOrigin = "0 0";
+    el.style.transform = `translate(${left - ox - x1 * dw * s}px, ${top - oy - y1 * dh * s}px) scale(${s})`;
+    view = { left, top, width: cw * s, height: ch * s, W: dw * s, H: dh * s, x1, y1 };
+    Object.assign(overlay.style, { left: "0px", top: "0px", width: CW + "px", height: CH + "px" });
+    overlay.width = Math.round(CW * dpr);
+    overlay.height = Math.round(CH * dpr);
+    return;
+  }
   // The overlay sits exactly on the picture (which may be narrower than its frame on a laptop screen)
-  Object.assign(overlay.style, { left: el.offsetLeft + "px", top: el.offsetTop + "px",
-                                 width: el.clientWidth + "px", height: el.clientHeight + "px" });
-  overlay.width = Math.round(el.clientWidth * dpr);
-  overlay.height = Math.round(el.clientHeight * dpr);
+  Object.assign(overlay.style, { left: ox + "px", top: oy + "px", width: dw + "px", height: dh + "px" });
+  overlay.width = Math.round(dw * dpr);
+  overlay.height = Math.round(dh * dpr);
 }
 window.addEventListener("resize", sizeOverlay);
 video.addEventListener("resize", sizeOverlay);
@@ -1150,7 +1252,7 @@ function drawNormal(ctx, W, H) {
       outlines(ctx, photoQuality.quads, photoQuality.lines, W, H);
       if (photoQuality.box && !(photoQuality.quads || []).length) { ctx.lineWidth = 2; rect(ctx, photoQuality.box, W, H); }
     }
-    drawGuideBox(ctx, W, H, capturedStill ? COLORS.ready : COLORS.idle, capturedStill ? "CAPTURED   R = new item" : "UPLOADED PHOTO");
+    drawGuideBox(ctx, W, H, capturedStill ? COLORS.ready : COLORS.idle, capturedStill ? "CAPTURED   N = new item" : "UPLOADED PHOTO");
     return drawPhotoQuality(ctx, W, H, H - (20 / 720) * H - 12);
   }
   if (!guide) return drawGuideBox(ctx, W, H, COLORS.idle, "SHOW TEXT HERE");
@@ -1159,7 +1261,7 @@ function drawNormal(ctx, W, H) {
   if (guide.box && !(guide.quads || []).length) { ctx.lineWidth = 2; rect(ctx, guide.box, W, H); }
   const color = { CAPTURED: COLORS.ready, CAPTURING: COLORS.ready, HOLD: COLORS.hold, COACH: COLORS.hold,
                   ADJUST: COLORS.detect }[guide.state] || COLORS.idle;
-  const label = guide.state === "CAPTURED" ? "CAPTURED - ASK ME   R = new item   A = read all" : guide.label;
+  const label = guide.state === "CAPTURED" ? "CAPTURED - ASK ME   N = new item   A = read all" : guide.label;
   drawGuideBox(ctx, W, H, color, label);
   plateText(ctx, guide.quality, (30 / 1280) * W + 14, H - (20 / 720) * H - 14,
             guide.problems.length ? COLORS.problem : COLORS.idle, "13px sans-serif");
@@ -1170,6 +1272,20 @@ function lineAt(pos) {
 }
 
 function drawBook(ctx, W, H) {
+  if (view) {
+    // Zoomed in on the book: hide what is round it, and draw the layout on the enlarged picture
+    ctx.fillStyle = "#000";
+    ctx.beginPath(); ctx.rect(0, 0, W, H); ctx.rect(view.left, view.top, view.width, view.height); ctx.fill("evenodd");
+    ctx.save();
+    ctx.beginPath(); ctx.rect(view.left, view.top, view.width, view.height); ctx.clip();
+    ctx.translate(view.left - view.x1 * view.W, view.top - view.y1 * view.H);
+    drawBookLayout(ctx, view.W, view.H);
+    ctx.restore();
+  } else drawBookLayout(ctx, W, H);
+  drawBookBar(ctx, W, H);
+}
+
+function drawBookLayout(ctx, W, H) {
   const turning = !uploadView && (!bookState || bookState.state === "TURNING");
   if (pageLayout && !turning) {
     const L = pageLayout;
@@ -1205,7 +1321,10 @@ function drawBook(ctx, W, H) {
       if (word) { ctx.strokeStyle = COLORS.word; ctx.lineWidth = 2; if (word[3]) poly(ctx, word[3], W, H); else rect(ctx, word[2], W, H, 3); }
     }
   }
-  const bar = 40;
+}
+
+function drawBookBar(ctx, W, H) {
+  const bar = BOOK_BAR;
   if (uploadView) drawPhotoQuality(ctx, W, H, H - bar - 10);
   ctx.fillStyle = PLATE; ctx.fillRect(0, H - bar, W, bar);
   const s = bookState;

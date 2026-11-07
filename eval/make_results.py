@@ -334,8 +334,8 @@ def main():
 
     # ---------------------------------------------------------------- users
     if users:
-        L += ["", "## 7. User study", "", f"{len(users)} people ({', '.join(sorted({r['vision'] for r in users}))}), protocol in "
-              "`markdown/user_study.md`.", "", "| Statement | Mean (1–5) |", "|---|---|"]
+        L += ["", "## 7. User study", "", f"{len(users)} people ({', '.join(sorted({r['vision'] for r in users}))}), answers in "
+              "`eval/data/user_study.csv`.", "", "| Statement | Mean (1–5) |", "|---|---|"]
         for k, label in (("q_useful", "Useful"), ("q_easy", "Easy to get the item into view"), ("q_answers", "Answers correct"),
                          ("q_speed", "Fast enough"), ("q_voice", "Voice clear"), ("q_overall", "Overall (the user rating)")):
             vals = [float(r[k]) for r in users if r[k]]

@@ -1511,6 +1511,9 @@ def _page_back(matrix: Optional[np.ndarray], dx: int):
     return point
 
 
+_HYPHENATED = re.compile(r"[^\W\d_]-$")    # a word broken over two lines ("exam-"), not a dash ("Progression -", "/-")
+
+
 def _read_flat_page(frame: np.ndarray, split: bool, enhance: bool, book=None) -> Tuple[str, PageLayout]:
     """read_page() on one image: split the spread, OCR each page, order the text (see read_page).
     book: the book's outline in this image (4 corners), or None when it was not found."""
@@ -1557,7 +1560,7 @@ def _read_flat_page(frame: np.ndarray, split: bool, enhance: bool, book=None) ->
                     if text:
                         text += "\n\n"
                     para_start = len(text)
-                elif text.endswith("-") and t[:1].islower():
+                elif _HYPHENATED.search(text) and t[:1].islower():
                     text = text[:-1]          # "exam-" + "ple" -> "example"
                 else:
                     text += " "
@@ -1637,7 +1640,8 @@ def read_page(frame: np.ndarray, split: bool = True, enhance: bool = False) -> T
 # =====================================================================
 # 5b. Paragraphs by the language model (the lines stay exactly as read)
 # =====================================================================
-MAX_ARRANGE_LINES = 150     # a page with more lines than this is read as the layout analysis ordered it
+MAX_ARRANGE_LINES = 250     # a page with more lines than this is read as the layout analysis ordered it (real book
+                            # spreads have 110-170 lines)
 
 
 def line_hints(layout: PageLayout) -> List[str]:
@@ -1737,32 +1741,74 @@ def numbered_lines(layout: PageLayout) -> str:
     return "\n".join(out)
 
 
-def regroup(layout: PageLayout, groups: List[List[int]], skip: List[int]) -> Tuple[str, PageLayout]:
+FIX_SIMILARITY = 0.6        # how close (0-1, by letters) a corrected line must stay to the line as read
+
+
+def fix_is_safe(read: str, fixed: str) -> bool:
+    """
+    Is the model's correction of a line one to use? Only when it stays close to what the text reader saw: it may
+    repair misread letters, split or joined words and stray symbols, but not rewrite the line, add to it or drop
+    from it (the model must never put words in the author's mouth).
+    """
+    a, b = " ".join(read.split()).lower(), " ".join(fixed.split()).lower()
+    if not a or not b or a == b:
+        return False
+    words_a, words_b = len(a.split()), len(b.split())
+    if abs(words_a - words_b) > max(1, words_a // 4) or not 0.7 * len(a) - 6 <= len(b) <= 1.3 * len(a) + 6:
+        return False
+    return SequenceMatcher(None, a, b).ratio() >= FIX_SIMILARITY
+
+
+def _refit_words(old: LineSpan, text: str, start: int) -> Tuple[List[Tuple[int, int, Box]], List[Quad]]:
+    """Word positions for a corrected line (text, starting at `start` in the page): each word gets the box of the
+    read word at the same place in the line, so the reading highlight still lands on it."""
+    spots = [(m.start(), m.end()) for m in re.finditer(r"\S+", text)]
+    if not old.words or not spots:
+        return [], []
+    picks = [min(len(old.words) - 1, i * len(old.words) // len(spots)) for i in range(len(spots))]
+    words = [(start + a, start + b, old.words[j][2]) for (a, b), j in zip(spots, picks)]
+    return words, ([old.word_quads[j] for j in picks] if old.word_quads else [])
+
+
+def regroup(layout: PageLayout, groups: List[List[int]], skip: List[int],
+            fixes: Optional[dict] = None) -> Tuple[str, PageLayout]:
     """
     The page text and layout with the lines put into the given paragraphs (lists of line numbers, in reading
-    order); lines in `skip` are left out. Only the grouping changes: every line keeps its words, so the reading
-    highlight still finds them. Lines of a paragraph are joined with spaces (a word hyphenated across lines is
-    joined), paragraphs with a blank line, as read_page does. Returns a new layout; the given one is not touched.
+    order); lines in `skip` are left out. `fixes` ({line number: text}) are the model's corrections of lines the
+    text reader misread; each is used only when fix_is_safe() allows it. Every line keeps its words' boxes, so the
+    reading highlight still finds them. Lines of a paragraph are joined with spaces (a word hyphenated across lines
+    is joined), paragraphs with a blank line, as read_page does. Returns a new layout; the given one is not touched.
     """
     text, spans, paragraphs, blocks, block_quads = "", [], [], [], []
+    fixed, refused = [], 0
     for group in groups:
         members = []
         para_start = None
         for i in group:
             old = layout.lines[i]
             t = old.text
+            if fixes and i in fixes and fixes[i] != " ".join(t.split()):     # the same line sent back is no fix
+                if fix_is_safe(t, fixes[i]):
+                    fixed.append(f'"{t}" -> "{fixes[i]}"')
+                    t = fixes[i]
+                else:
+                    refused += 1
             if para_start is None:
                 if text:
                     text += "\n\n"
                 para_start = len(text)
-            elif text.endswith("-") and t[:1].islower():
+            elif _HYPHENATED.search(text) and t[:1].islower():
                 text = text[:-1]          # "exam-" + "ple" -> "example"
             else:
                 text += " "
             start = len(text)
             text += t
-            words = [(start + a - old.start, start + b - old.start, box) for a, b, box in old.words]
-            members.append(replace(old, start=start, end=len(text), words=words))
+            if t == old.text:
+                words = [(start + a - old.start, start + b - old.start, box) for a, b, box in old.words]
+                members.append(replace(old, start=start, end=len(text), words=words))
+            else:
+                words, word_quads = _refit_words(old, t, start)
+                members.append(replace(old, start=start, end=len(text), words=words, word_quads=word_quads, text=t))
         spans += members
         paragraphs.append((para_start, len(text)))
         if all(m.quad for m in members):
@@ -1773,13 +1819,19 @@ def regroup(layout: PageLayout, groups: List[List[int]], skip: List[int]) -> Tup
                              max(m.box[2] for m in members), max(m.box[3] for m in members)))
         blocks.append(quad_bounds(quad))
         block_quads.append(quad)
+    if fixed or refused:
+        logger.info(f"The model corrected {len(fixed)} misread line(s)"
+                    + (f" and {refused} correction(s) were refused as too far from the print" if refused else "")
+                    + (": " + "; ".join(fixed[:8]) if fixed else ""))
     return text, replace(layout, lines=spans, paragraphs=paragraphs, blocks=blocks, block_quads=block_quads)
 
 
 def arrange_page(layout: PageLayout, doc, cache: Optional[dict] = None) -> Optional[Tuple[str, PageLayout]]:
     """
     Ask the language model (doc.arrange_lines) how the page's lines form paragraphs, and rebuild the page that way:
-    a sentence that runs on over a line, column or page is one paragraph, so it is read without a pause. Returns
+    a sentence that runs on over a line, column or page is one paragraph, so it is read without a pause. The model
+    also reads the page for sense and corrects lines the text reader misread (only small repairs are taken, see
+    fix_is_safe), so a jumbled word is read as printed. Returns
     (text, layout), or None when the model cannot be used: then the layout analysis' paragraphs stay.
     """
     lines = layout.lines
@@ -1795,8 +1847,8 @@ def arrange_page(layout: PageLayout, doc, cache: Optional[dict] = None) -> Optio
             cache[key] = plan
             while len(cache) > 16:
                 cache.pop(next(iter(cache)))
-    groups, skip = plan
-    return regroup(layout, groups, skip)
+    groups, skip, fixes = (tuple(plan) + ({},))[:3]
+    return regroup(layout, groups, skip, fixes)
 
 
 # =====================================================================

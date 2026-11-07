@@ -80,19 +80,29 @@ def test_answer_streams_sentence_by_sentence():
 
 def test_the_model_arranges_the_lines_of_a_page_into_paragraphs():
     doc = setup('Sure. {"paragraphs": [[0, 1, 2], [3, 4]], "skip": [5]}')
-    assert doc.arrange_lines("0 a\n1 b\n2 c\n3 d\n4 e\n5 47", 6) == ([[0, 1, 2], [3, 4]], [5])
+    assert doc.arrange_lines("0 a\n1 b\n2 c\n3 d\n4 e\n5 47", 6) == ([[0, 1, 2], [3, 4]], [5], {})
     body = Fake.requests[0][1]
     assert body["messages"][0]["content"] == da.ARRANGE_PROMPT and body["messages"][1]["content"].startswith("0 a")
 
 
 def test_an_arrangement_that_would_lose_or_double_a_line_is_not_used():
-    assert da.parse_arrangement('{"paragraphs": [[0, 1], [2]], "skip": []}', 3) == ([[0, 1], [2]], [])
-    assert da.parse_arrangement('{"paragraphs": [[0, 1]], "skip": []}', 3) is None            # line 2 lost
+    assert da.parse_arrangement('{"paragraphs": [[0, 1], [2]], "skip": []}', 3) == ([[0, 1], [2]], [], {})
+    # A line the model forgot is put back after the line before it (where the layout reads it), never lost
+    assert da.parse_arrangement('{"paragraphs": [[0, 1]], "skip": []}', 3) == ([[0, 1, 2]], [], {})
+    assert da.parse_arrangement('{"paragraphs": [[0, 3], [5]], "skip": [1]}', 6) == ([[0, 2, 3, 4], [5]], [1], {})
+    assert da.parse_arrangement('{"paragraphs": [[2, 3]], "skip": []}', 4) == ([[0, 1, 2, 3]], [], {})
     assert da.parse_arrangement('{"paragraphs": [[0, 1], [1, 2]], "skip": []}', 3) is None    # line 1 twice
     assert da.parse_arrangement('{"paragraphs": [[0], [2]], "skip": [1, 3]}', 3) is None      # no such line
     assert da.parse_arrangement('{"paragraphs": [[0], [], [1, 2]], "skip": []}', 3) is None    # empty paragraph
     assert da.parse_arrangement('{"paragraphs": [[0]], "skip": [1, 2, 3, 4, 5, 6, 7, 8]}', 9) is None   # most of the page dropped
     assert da.parse_arrangement("I cannot do that", 3) is None
+
+
+def test_the_model_checks_the_page_for_sense_and_corrects_misread_lines():
+    assert '"fixes"' in da.ARRANGE_PROMPT and "makes sense" in da.ARRANGE_PROMPT
+    reply = ('{"paragraphs": [[0, 1]], "skip": [2], "fixes": {"1": "the  quick brown fox", "2": "47", '
+             '"9": "no such line", "x": "not a number", "0": ""}}')
+    assert da.parse_arrangement(reply, 3) == ([[0, 1]], [2], {1: "the quick brown fox"})   # only real, kept lines
 
 
 def test_arranging_fails_quietly_without_a_key_or_when_the_model_fails():
@@ -267,6 +277,47 @@ def test_expiry_dates_are_found_in_common_label_wordings():
         assert [d for _, d in da.expiry_dates(printed)] == [expected], printed
     assert da.expiry_dates("Mfg. Date 03/2025") == []
     assert "HAS EXPIRED" in da.expiry_checks("Exp. Date 02/2025", today=date(2026, 10, 19))
+
+
+def test_every_printed_date_is_found_but_amounts_and_codes_are_not_dates():
+    from datetime import date
+    cases = {"07/01/27": date(2027, 1, 7), "08/2027": date(2027, 8, 31), "06/28": date(2028, 6, 30),
+             "12-2026": date(2026, 12, 31), "12.2026": date(2026, 12, 31), "08.06.2024": date(2024, 6, 8),
+             "NOV.26": date(2026, 11, 30), "APR 2028": date(2028, 4, 30), "MAY-2025": date(2025, 5, 31)}
+    for printed, expected in cases.items():
+        assert [d for _, d in da.printed_dates(f"Batch AB12 {printed} MRP")] == [expected], printed
+    # Prices, amounts, nutrition values, licence and phone numbers are not dates
+    noise = "Rs. 170.00 Energy 2.43 kcal 0.121 g Mfg. Lic. No. KTK/25/422/99 MB/16/940 5/325 mg BO-13-000-07 call 1800-10-22-21"
+    assert da.printed_dates(noise) == []
+    # A range is two dates, and a date printed twice is listed once
+    assert [p for p, _ in da.printed_dates("Use before: 04/2026-03/2029 and 03/2029")] == ["04/2026", "03/2029"]
+
+
+def test_a_date_printed_away_from_its_label_is_offered_to_the_model_with_its_check():
+    from datetime import date
+    # The labels in one column and the dates in another, as the reader often gives them on Indian packs
+    text = "Batch No.: ABOO3AJA 03/2025 Mfg. Date: 08/2027 Expiry Date: 230.00 M.R.P."
+    assert da.expiry_dates(text) == []
+    checks = da.expiry_checks(text, today=date(2026, 10, 19))
+    assert "not certain" in checks and '"03/2025"' in checks and '"08/2027"' in checks
+    assert "if this is the expiry date it HAS EXPIRED" in checks and "if this is the expiry date it has NOT expired" in checks
+    assert "No expiry date found" not in checks
+    assert da.expiry_checks("Batch AB12 MRP 230.00") == "No expiry date found in the text."     # no date at all
+
+    doc = setup("It expires in August 2027, so it has not expired.")
+    doc.set_document(text)
+    list(doc.ask("When does it expire?"))
+    note = Fake.requests[0][1]["messages"][-1]["content"]
+    assert "work out which of these dates is the expiry" in note and "Checked by the app, and certain" not in note
+    assert "latest" in note and "Always choose one" in note
+    # The small local model is not left to choose: the app gives it the latest date (expiry comes after manufacture)
+    doc.set_provider("qwen3b")
+    qwen_note = doc._expiry_note()
+    assert 'probably "08/2027"' in qwen_note and '"03/2025"' not in qwen_note
+    doc = setup("It expires in February 2027.")
+    doc.set_document("Exp. Date 02/2027")
+    list(doc.ask("When does it expire?"))
+    assert "Checked by the app, and certain" in Fake.requests[0][1]["messages"][-1]["content"]     # labelled: still certain
 
 
 if __name__ == "__main__":

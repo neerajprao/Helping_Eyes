@@ -16,7 +16,7 @@
       <summary>Settings</summary>
       <div class="settings-panel">
         <label class="toggle"><input id="sr-mode" type="checkbox"> My screen reader reads everything (the app's own voice stays quiet)</label>
-        <label class="toggle"><input id="shortcuts" type="checkbox" checked> Single-key shortcuts (C, R, B, A, P, S, M)</label>
+        <label class="toggle"><input id="shortcuts" type="checkbox" checked> Single-key shortcuts (C, N, B, A, R, S, L)</label>
       </div>
     </details>
   </header>
@@ -37,9 +37,9 @@
       </div>
       <div class="row">
         <button id="capture" class="primary" aria-keyshortcuts="C">Capture now <kbd>C</kbd></button>
-        <button id="newitem" class="secondary" aria-keyshortcuts="R">New item <kbd>R</kbd></button>
+        <button id="newitem" class="secondary" aria-keyshortcuts="N">New item <kbd>N</kbd></button>
         <button id="bookmode" class="secondary" aria-pressed="false" aria-keyshortcuts="B">Book mode <kbd>B</kbd></button>
-        <label class="button secondary" for="upload">Upload photo</label>
+        <label id="upload-button" class="button secondary" for="upload">Upload photo</label>
         <input id="upload" type="file" accept="image/*" capture="environment" class="visually-hidden">
         <button id="back-to-camera" class="secondary" hidden>Back to camera</button>
         <label class="toggle"><input id="book" type="checkbox"> Uploaded photo is a two-page spread</label>
@@ -63,11 +63,11 @@
         <label for="question" class="visually-hidden">Your question</label>
         <input id="question" type="text" placeholder="e.g. When does it expire?" autocomplete="off">
         <button type="submit" class="primary">Ask</button>
-        <button type="button" id="mic" class="secondary" aria-pressed="false" aria-keyshortcuts="M">Listen <kbd>M</kbd></button>
+        <button type="button" id="mic" class="secondary" aria-pressed="false" aria-keyshortcuts="L">Listen <kbd>L</kbd></button>
       </form>
       <div class="row">
         <button id="read-all" class="secondary" aria-keyshortcuts="A">Read everything <kbd>A</kbd></button>
-        <button id="repeat" class="secondary" aria-keyshortcuts="P">Repeat <kbd>P</kbd></button>
+        <button id="repeat" class="secondary" aria-keyshortcuts="R">Repeat <kbd>R</kbd></button>
         <button id="stop" class="neutral" aria-keyshortcuts="S">Stop <kbd>S</kbd></button>
       </div>
       <details class="hint">
@@ -94,6 +94,16 @@
       <p id="you-said" class="you-said" hidden></p>
       <!-- tabindex: on a laptop the answer scrolls in its own box, so the keyboard must be able to reach and scroll it -->
       <div id="answer" class="answer" tabindex="0" role="group" aria-labelledby="answer-heading"></div>
+    </section>
+
+    <!-- Book mode only: the camera and these buttons are the whole page. app.js moves the Book mode, Upload photo,
+         Back to camera and Stop buttons here (before Continue) while book mode is on, and back to their places when
+         it is off. -->
+    <section id="book-panel" aria-labelledby="book-heading" class="card book-panel" hidden>
+      <h2 id="book-heading" class="visually-hidden">Book mode controls</h2>
+      <div class="book-controls">
+        <button id="continue" class="secondary" type="button">Continue</button>
+      </div>
     </section>
   </main>
 

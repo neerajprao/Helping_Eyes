@@ -140,13 +140,20 @@ Decide the paragraphs and the order in which they are read.
   indented, or follows a gap, or follows a [short] line. A [short] line that ends with a full stop, question mark
   or exclamation mark almost always ends its paragraph. A heading, chapter title or list item is its own
   paragraph. A sentence that carries on over the next line belongs to the same paragraph, whatever the tags say.
-- You only group and order lines. Never change, add, fix or reorder words inside a line.
+- Read the page as a whole and check that every line makes sense in its sentence. The text reader makes mistakes:
+  wrong letters ("rn" read for "m", "l" or "1" for "I", "0" for "O", "vv" for "w"), a word split in two or two words
+  run together, a stray symbol or letter. When a line clearly contains such a mistake, put the corrected line in
+  "fixes", under its line number. Fix only what the reader got wrong, so the line says what is printed: keep every
+  word that is right, keep the words in their order, keep a hyphen that ends the line, never add, drop or reword
+  anything, and never correct the author's own spelling, grammar or style. When you are not sure what is printed,
+  leave the line as it is. Most lines need no fix.
 - Put a line in "skip" only when it clearly is not part of the book's text: a page number, a running header or
   footer, a stray fragment from the text reader. When unsure, keep the line.
 - Every line number appears exactly once, either in one paragraph or in "skip".
 
-Reply with JSON only: the paragraphs in reading order, each a list of line numbers in reading order, for example
-{"paragraphs": [[0, 1, 2], [3, 4], [5, 6, 7]], "skip": [8]}"""
+Reply with JSON only: the paragraphs in reading order, each a list of line numbers in reading order, the lines
+skipped, and the corrected lines (the whole line, an empty object when nothing needs fixing), for example
+{"paragraphs": [[0, 1, 2], [3, 4], [5, 6, 7]], "skip": [8], "fixes": {"4": "the whole of line 4, corrected"}}"""
 
 ARRANGE_TIMEOUT = 12     # seconds the model gets to arrange a page before the page is read as it is
 
@@ -176,10 +183,25 @@ _READ_ALL_REQUEST = re.compile(
 _ITEM_ONLY = re.compile(r"expir|exp\b|best before|use by|batch|lot\b|mfg|manufactur(ed|ing) date|price|mrp|cost", re.I)
 
 
-def parse_arrangement(reply: str, count: int) -> Optional[Tuple[List[List[int]], List[int]]]:
+def _put_back(groups: List[List[int]], line: int) -> None:
+    """Put a line the model forgot back where the page layout reads it: right after the nearest earlier line that is
+    in a paragraph, else before the nearest later one."""
+    where = {i: (g, k) for g, group in enumerate(groups) for k, i in enumerate(group)}
+    earlier = [i for i in where if i < line]
+    if earlier:
+        g, k = where[max(earlier)]
+        groups[g].insert(k + 1, line)
+    else:
+        g, k = where[min(where)]
+        groups[g].insert(k, line)
+
+
+def parse_arrangement(reply: str, count: int) -> Optional[Tuple[List[List[int]], List[int], dict]]:
     """
-    The model's paragraphs and skipped lines from its reply, or None when the reply cannot be trusted: not JSON, a
-    line missing or given twice, or too many lines skipped. Nothing may be lost by a wrong answer.
+    The model's paragraphs, skipped lines and corrected lines ({line number: text}) from its reply, or None when the
+    reply cannot be trusted: not JSON, a line given twice or not on the page, or too many lines skipped. A line the
+    model forgot (long pages often lose a few) is put back where the layout reads it. Nothing may be lost by a
+    wrong answer.
     """
     start, end = reply.find("{"), reply.rfind("}")
     if start < 0 or end <= start:
@@ -190,14 +212,26 @@ def parse_arrangement(reply: str, count: int) -> Optional[Tuple[List[List[int]],
         skip = [int(i) for i in data.get("skip", [])]
     except (ValueError, TypeError, KeyError):
         return None
-    if any(not group for group in groups):
+    if any(not group for group in groups) or not groups:
         return None
     seen = [i for group in groups for i in group] + skip
-    if sorted(seen) != list(range(count)) or not groups:
+    if len(seen) != len(set(seen)) or any(not 0 <= i < count for i in seen):
         return None
     if len(skip) > max(2, count // 4):
         return None
-    return groups, skip
+    for line in sorted(set(range(count)) - set(seen)):
+        _put_back(groups, line)
+    # Corrected lines: kept only for real lines that are read (vision.regroup then checks each stays close to the print)
+    fixes = {}
+    raw = data.get("fixes") if isinstance(data, dict) else None
+    for key, value in (raw.items() if isinstance(raw, dict) else []):
+        try:
+            i = int(key)
+        except (ValueError, TypeError):
+            continue
+        if 0 <= i < count and i not in skip and isinstance(value, str) and value.strip():
+            fixes[i] = " ".join(value.split())
+    return groups, skip, fixes
 
 
 def wants_read_all(request: str) -> bool:
@@ -264,14 +298,76 @@ def expiry_dates(text: str) -> List[Tuple[str, date]]:
     return found
 
 
+# Any printed date, labelled or not (15/04/2028, 07/01/27, 04/2028, 06/28, 12-2026, 12.2026, 08.06.2024, NOV.26,
+# APR 2028, MAY-2025). On real packs the labels (Batch No., Mfg. Date, Expiry Date) are often printed in one column
+# and their values in another, so the reader puts a date far from its label; these are the dates the model chooses
+# from then. A "." date needs a four-digit year or a month name, so prices and amounts (2.43, 170.00) are not dates.
+_ANY_DATE = re.compile(
+    r"(?<!\d)(?<![/\-])(?<!\d\.)(?:"
+    r"(?P<d>\d{1,2})[/\-.](?P<m>\d{1,2})[/\-.](?P<y>\d{4}|\d{2})"
+    r"|(?P<m2>\d{1,2})[/\-](?P<y2>\d{4}|\d{2})"
+    r"|(?P<m3>\d{1,2})\.(?P<y3>\d{4})"
+    r"|\b(?P<mon>jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?[\s/\-.]*(?P<y4>\d{4}|\d{2})"
+    r")(?!\d)(?![/.]\d)",
+    re.I,
+)
+_LATEST_YEAR = 2045                     # a "date" past this is a number, not a date on a pack
+
+
+def printed_dates(text: str) -> List[Tuple[str, date]]:
+    """(printed text, last day it covers) for every date printed anywhere in the text, in reading order, each once."""
+    text = re.sub(r"(\d{4})-(?=\d{1,2}[/\-.]\d)", r"\1 - ", text)       # a range "04/2026-03/2029" is two dates
+    found, seen = [], set()
+    for m in _ANY_DATE.finditer(text):
+        try:
+            if m.group("d"):
+                year, month = _year(m.group("y")), int(m.group("m"))
+                last = date(year, month, int(m.group("d")))
+            else:
+                if m.group("mon"):
+                    month, year = _MONTHS[m.group("mon").lower()[:3]], _year(m.group("y4"))
+                else:
+                    month = int(m.group("m2") or m.group("m3"))
+                    year = _year(m.group("y2") or m.group("y3"))
+                last = date(year, month, calendar.monthrange(year, month)[1])
+        except (ValueError, KeyError):
+            continue
+        if not 2000 <= last.year <= _LATEST_YEAR:
+            continue
+        printed = " ".join(m.group(0).split())
+        if printed.lower() not in seen:
+            seen.add(printed.lower())
+            found.append((printed, last))
+    return found
+
+
+def _check_line(printed: str, last: date, today: date, maybe: bool = False) -> str:
+    when = f'Printed "{printed}" = valid until {last.strftime("%d %B %Y")}. Today is {today.strftime("%d %B %Y")}, '
+    if maybe:
+        return when + ("which is AFTER that date, so if this is the expiry date it HAS EXPIRED." if last < today
+                       else "which is BEFORE that date, so if this is the expiry date it has NOT expired.")
+    return when + ("which is AFTER that date, so it HAS EXPIRED." if last < today
+                   else "which is BEFORE that date, so it has NOT expired and is still good.")
+
+
 def expiry_checks(text: str, today: date = None) -> str:
-    """One line per expiry date found, saying whether it has passed."""
+    """
+    What the app's code knows about the expiry date, for the model. A date printed right after an expiry label is
+    certain: one line each, saying whether it has passed. Otherwise every date printed on the item is listed with the
+    same check, and the model picks the expiry date from the text (the code still does the date arithmetic).
+    """
     today = today or date.today()
-    lines = [f'Printed "{printed}" = valid until {exp.strftime("%d %B %Y")}. Today is {today.strftime("%d %B %Y")}, '
-             + ("which is AFTER that date, so it HAS EXPIRED." if exp < today
-                else "which is BEFORE that date, so it has NOT expired and is still good.")
-             for printed, exp in expiry_dates(text)]
-    return "\n".join(lines) or "No expiry date found in the text."
+    labelled = expiry_dates(text)
+    if labelled:
+        return "\n".join(_check_line(printed, exp, today) for printed, exp in labelled)
+    dates = printed_dates(text)
+    if not dates:
+        return "No expiry date found in the text."
+    return ("No date is printed right after an expiry label, so it is not certain which date is the expiry date. "
+            "On packs the labels (Batch No., Mfg. Date, Expiry Date) are often printed in one column and their dates "
+            "in another, so a date can be read before or after its label, and the expiry date is the later date of a "
+            "manufacturing and expiry pair. Dates printed on the item, in the order they were read:\n"
+            + "\n".join(_check_line(printed, last, today, maybe=True) for printed, last in dates))
 
 
 # Questions with an exact answer are answered in code, not by the model
@@ -378,10 +474,9 @@ class DocAssistant:
             messages = [{"role": "system", "content": system}] + self.history
             content = question
             if _EXPIRY_QUESTION.search(question):
-                # The code works out the dates; the model only puts the verdict into its own words
-                verdict = expiry_checks(self.document)
-                content += (f"\n\n[Checked by the app, and certain: {verdict} Answer in your own natural words, in one or two "
-                            "sentences, and do not mention this note.]")
+                # The code works out the dates; the model only puts the verdict into its own words. When no date sits
+                # next to an expiry label, the model picks the expiry date from the dates the code checked.
+                content += self._expiry_note()
             messages.append({"role": "user", "content": content})
 
         answer = []
@@ -398,6 +493,34 @@ class DocAssistant:
         if answer and _SAYS_NOT_IN_TEXT.search(answer[0]):
             self.last_not_in_text = True
         self._remember(question, " ".join(answer), generation)
+
+    def _expiry_note(self) -> str:
+        """
+        The app's note for an expiry question. A date right after an expiry label (or no date at all) is certain.
+        Otherwise the expiry date is the latest date printed as a rule (it comes after the manufacturing date): the
+        small local model is given that date to put into words; the online model is given every date with its check,
+        so it can use the text to choose, with that rule as its guide. Measured on 34 real packs whose expiry date is
+        printed apart from its label: Gemini choosing 23 right, the latest-date rule 20, Qwen choosing alone 11.
+        """
+        verdict = expiry_checks(self.document)
+        dates = printed_dates(self.document)
+        if expiry_dates(self.document) or not dates:
+            return (f"\n\n[Checked by the app, and certain: {verdict} Answer in your own natural words, in one or two "
+                    "sentences, and do not mention this note.]")
+        past = ("If that date has already passed, add that it may be the manufacturing date instead, so the pack should "
+                "be checked.")
+        if self.provider in QWEN_MODELS:
+            printed, last = max(dates, key=lambda d: d[1])
+            return (f"\n\n[Checked by the app: no date is printed right next to an expiry label. The expiry date is most "
+                    f"likely the latest date printed, because it comes after the manufacturing date: "
+                    f"{_check_line(printed, last, date.today())} In one or two sentences, say that the expiry date is "
+                    f'probably "{printed}", that it is not printed right next to its label, and whether it has expired '
+                    f"by that check. {past if last < date.today() else ''} Do not mention this note.]")
+        return (f"\n\n[Checked by the app: {verdict}\nFrom the text, work out which of these dates is the expiry (or use by "
+                "/ best before) date: as a rule it is the latest of them, because it comes after the manufacturing "
+                "date, unless the text clearly shows otherwise. Always choose one; never answer that it cannot be told. "
+                "Then, in one or two sentences, say that date, that it is not printed right next to its label, and "
+                f"whether it has expired, using the app's check for that date. {past} Do not mention this note.]")
 
     def ask_web(self, question: str) -> Iterator[str]:
         """Search the web for the question and answer from the results."""
@@ -448,8 +571,8 @@ class DocAssistant:
 
     def arrange_lines(self, numbered: str, count: int) -> Optional[Tuple[List[List[int]], List[int]]]:
         """
-        Book mode: ask the model how the numbered lines of a page form paragraphs (see ARRANGE_PROMPT).
-        Returns (paragraphs, skipped lines) as parse_arrangement checks them, or None when there is no model to ask,
+        Book mode: ask the model how the numbered lines of a page form paragraphs, and which lines the text reader
+        misread (see ARRANGE_PROMPT). Returns (paragraphs, skipped lines, corrected lines) as parse_arrangement checks them, or None when there is no model to ask,
         it is slow or fails, or its reply is not usable: the caller then keeps the layout analysis' paragraphs.
         """
         base, headers, model, key = _endpoint(self.provider)
@@ -457,7 +580,7 @@ class DocAssistant:
             return None
         try:
             r = requests.post(f"{base}/chat/completions", headers=headers, json={
-                "model": model, "temperature": 0, "max_tokens": 2000,
+                "model": model, "temperature": 0, "max_tokens": 4000,
                 "messages": [{"role": "system", "content": ARRANGE_PROMPT},
                              {"role": "user", "content": numbered}]}, timeout=(5, ARRANGE_TIMEOUT))
             r.raise_for_status()

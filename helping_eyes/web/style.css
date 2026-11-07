@@ -270,8 +270,18 @@ pre { white-space: pre-wrap; font: inherit; font-size: 1rem; max-height: 260px; 
   overflow: hidden; clip: rect(0 0 0 0); border: 0;
 }
 
+/* ---------------------------------------------------------------- book mode
+   Only the camera and the Stop and Book mode buttons (app.js moves them into #book-panel): no Ask or Answer card and
+   nothing under the camera. Everything comes back when book mode is turned off. */
+body.book main > section:nth-of-type(2),
+body.book main > section:nth-of-type(3),
+body.book main > section:nth-of-type(1) > .row,
+body.book #captured { display: none; }
+.book-controls { display: flex; flex-wrap: wrap; gap: 10px; }
+.book-controls > :is(button, .button) { flex: 1 1 40%; justify-content: center; }
+
 /* ---------------------------------------------------------------- laptop screens
-   Everything fits in the window, nothing scrolls. The camera takes the left half and shrinks to the height that
+   Everything fits in the window, nothing scrolls. The camera takes the left three quarters and shrinks to the height that
    is left; the answer area scrolls inside its own box if it gets long. */
 @media (min-width: 1000px) and (min-height: 560px) {
   :root { --tap: 44px; --radius-card: 18px; }
@@ -284,7 +294,7 @@ pre { white-space: pre-wrap; font: inherit; font-size: 1rem; max-height: 260px; 
   .tagline { display: none; }
   footer { flex: none; font-size: 0.8125rem; margin-top: 0; padding-top: 0; padding-bottom: 8px; }
   footer p { margin: 0; }
-  main { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  main { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 1fr);
          grid-template-rows: auto minmax(0, 1fr); column-gap: 16px; padding-top: 14px; }
   main > section:nth-of-type(1) { grid-column: 1; grid-row: 1 / span 2; display: flex; flex-direction: column; min-height: 0; }
   main > section:nth-of-type(2) { grid-column: 2; grid-row: 1; }
@@ -295,6 +305,9 @@ pre { white-space: pre-wrap; font: inherit; font-size: 1rem; max-height: 260px; 
   button, .button { padding: 6px 16px; }
   input[type="text"], input[type="password"] { min-height: 44px; padding: 6px 14px; }
   select { padding-top: 6px; padding-bottom: 6px; }
+  /* The Ask column is a quarter of the window: the menu shrinks to it (its longest choice would not fit) */
+  main > section:nth-of-type(2) > .row { min-width: 0; }
+  #model { min-width: 0; max-width: 100%; text-overflow: ellipsis; }
   .camera { flex: 1 1 auto; min-height: 0; display: flex; justify-content: center; align-items: center; }
   .camera video, .camera #still { width: auto; height: auto; max-width: 100%; max-height: 100%; }
   pre { max-height: 90px; }
@@ -304,10 +317,6 @@ pre { white-space: pre-wrap; font: inherit; font-size: 1rem; max-height: 260px; 
   .you-said { margin-bottom: 10px; padding: 6px 12px; }
   .offer { margin-top: 10px; padding: 10px 14px; }
   .offer p { margin-bottom: 8px; }
-}
-/* A smaller laptop window: equal columns, so the Ask controls stay on two rows and the answer keeps its room */
-@media (min-width: 1000px) and (max-width: 1199px) and (min-height: 560px) {
-  main { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
 }
 @media (min-width: 1000px) and (min-height: 560px) and (max-height: 720px) {
   /* "2. Ask" and the menu share a line, "Answer" and the status share a line, the offer is one line */
@@ -338,6 +347,17 @@ pre { white-space: pre-wrap; font: inherit; font-size: 1rem; max-height: 260px; 
   main > section:nth-of-type(1) { grid-row: 2 / span 2; }
   main > section:nth-of-type(2) { grid-row: 2; }
   main > section:nth-of-type(3) { grid-row: 3; }
+}
+
+/* Book mode on a laptop: the camera gets the room the Ask and Answer cards had, the two buttons stand on the right */
+@media (min-width: 1000px) and (min-height: 560px) {
+  body.book main { grid-template-columns: minmax(0, 1fr) 240px; }
+  .book-panel { grid-column: 2; grid-row: 1 / span 2; align-self: start; }
+  .book-controls { flex-direction: column; }
+  .book-controls > :is(button, .button) { flex: none; width: 100%; }
+}
+@media (min-width: 1000px) and (min-height: 760px) {
+  .book-panel { grid-row: 2 / span 2; }
 }
 
 /* ---------------------------------------------------------------- user preferences */

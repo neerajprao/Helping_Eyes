@@ -374,6 +374,45 @@ def test_regroup_leaves_out_skipped_lines_and_joins_hyphenated_words():
     _, layout = page_of_lines(rows)
     new_text, new = vision.regroup(layout, [[0, 1]], [2])
     assert new_text == "The lighthouse keeper was example enough for anyone." and len(new.lines) == 2
+    # A dash that is not a broken word is kept ("Career Progression -", "Rs. 400/-")
+    _, layout = page_of_lines([("Career Progression -", 50, 100, 300, 120, 0), ("see page 12, and Rs. 400/-", 50, 130, 300, 150, 0),
+                               ("per month.", 50, 160, 200, 180, 0)])
+    new_text, new = vision.regroup(layout, [[0, 1, 2]], [])
+    assert new_text == "Career Progression - see page 12, and Rs. 400/- per month."
+    assert all(new_text[s.start:s.end] == s.text for s in new.lines)
+
+
+def test_a_misread_line_is_corrected_by_the_model_only_when_the_fix_stays_close_to_the_print():
+    assert vision.fix_is_safe("tlie qnick brovvn fox jumped", "the quick brown fox jumped")
+    assert vision.fix_is_safe("the river was qu iet", "the river was quiet")                       # a split word joined
+    assert not vision.fix_is_safe("the river was quiet", "the river was quiet")                     # nothing to fix
+    assert not vision.fix_is_safe("the river was quiet", "a storm broke over the hills at night")   # a different line
+    assert not vision.fix_is_safe("the river was quiet", "the river was very quiet and still that day")   # words added
+
+
+def test_regroup_uses_the_models_corrections_and_keeps_each_word_findable():
+    rows = [("The rlver was qu1et that rnorning", 50, 100, 400, 120, 0), ("and nobody came down.", 50, 130, 300, 150, 0),
+            ("Later the rain began.", 50, 170, 300, 190, 0)]
+    _, layout = page_of_lines(rows)
+    fixes = {0: "The river was quiet that morning", 2: "Suddenly a storm broke over the hills at night."}   # 2 is refused
+    text, new = vision.regroup(layout, [[0, 1], [2]], [], fixes)
+    assert text == "The river was quiet that morning and nobody came down.\n\nLater the rain began."
+    for span in new.lines:
+        assert text[span.start:span.end] == span.text
+        assert [text[a:b] for a, b, _ in span.words] == span.text.split()
+    assert [b for _, _, b in new.lines[0].words] == [b for _, _, b in layout.lines[0].words]   # same boxes, same words
+    assert layout.lines[0].text == "The rlver was qu1et that rnorning"                          # the given layout is untouched
+
+
+def test_book_page_is_read_and_kept_with_the_models_corrections():
+    text, layout = page_of_lines()
+    reader, original = reader_showing([(text, layout)])
+    doc = ArrangingDoc(([[0, 1, 2], [3, 4]], [], {4: "and the streets filled slowly!"}))
+    try:
+        first = reader.process(FRAME, "changed", 0, False, False, doc)
+        assert first["text"].endswith("and the streets filled slowly!") and doc.document == first["text"]
+    finally:
+        vision.read_page = original
 
 
 def test_line_hints_mark_columns_gaps_indents_and_short_lines():
