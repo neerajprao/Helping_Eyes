@@ -379,15 +379,16 @@ def scenario_continue_reads_on_from_the_sentence_where_reading_stopped(page):
     page.js("pageText = 'One two. Three four five. Six seven.'; pageChunks = [{start: 0, text: pageText}]; "
             "reading = true; turnPrompted = false; readPos = 0; speechPos = 15; window.__spoken.length = 0")
     page.js("document.getElementById('stop').click()")
-    assert page.js("stoppedAt") == 15 and page.js("turnPrompted") is True        # stopped mid-page: no "Turn the page."
+    assert page.js("stoppedAt") == 15 and page.js("turnPrompted") is True, page.js("[stoppedAt, turnPrompted]")   # stopped mid-page: no "Turn the page."
     page.js("document.getElementById('continue').click()")
     page.wait("window.__spoken.length > 0")
     assert page.js("window.__spoken[0]") == "Three four five. Six seven.", page.js("window.__spoken")
-    # Stopped at the very end (or never stopped): nothing left, and it says so
-    page.js("stopSpeaking(); stoppedAt = null; reading = false; window.__spoken.length = 0")
+    # Stopped at the very end (or never stopped): nothing left, and it says so. The page is done and "Turn the page."
+    # counts as said (turnPrompted), else on a slow machine the page's own check says it first (the GitHub runner did)
+    page.js("stopSpeaking(); stoppedAt = null; reading = false; turnPrompted = true; window.__spoken.length = 0")
     page.js("document.getElementById('continue').click()")
     page.wait("window.__spoken.length > 0")
-    assert page.js("window.__spoken[0]").startswith("That was the end of the page")
+    assert page.js("window.__spoken[0]").startswith("That was the end of the page"), page.js("window.__spoken")
 
 
 def scenario_single_key_shortcuts_press_their_buttons(page):
