@@ -166,6 +166,55 @@ def test_the_local_voice_speaks_first_and_the_edge_voice_is_the_backup():
     _with_voices(kokoro, edge, body)
 
 
+def test_the_local_voice_skips_audio_nobody_wants_and_makes_a_repeated_request_only_once():
+    import threading
+    import time
+    import commands
+    calls = []
+
+    def kokoro(text):
+        calls.append(text)
+        time.sleep(0.2)
+        return b"k-" + text.encode()
+
+    async def edge(text):
+        raise AssertionError("the Edge voice must not be used")
+
+    def body():
+        # the browser moved on while this request waited: nothing is made, and nothing falls back to Edge
+        try:
+            commands.synthesize("Nobody wants this.", stale=lambda: True)
+            raise AssertionError("TtsCancelled expected")
+        except commands.TtsCancelled:
+            pass
+        assert calls == []
+        # a request and its second copy (the browser's hedge) at the same time: the voice works once
+        results = []
+        threads = [threading.Thread(target=lambda: results.append(commands.synthesize("Twice asked."))) for _ in range(2)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+        assert results == [b"k-Twice asked."] * 2 and calls == ["Twice asked."]
+    _with_voices(kokoro, edge, body)
+
+
+def test_the_phonemizer_word_count_warnings_are_not_logged():
+    import logging
+    import commands      # noqa: F401  (adds the filter)
+    seen = []
+    handler = logging.Handler()
+    handler.emit = lambda record: seen.append(record.getMessage())
+    root = logging.getLogger()
+    root.addHandler(handler)
+    try:
+        logging.getLogger("phonemizer").warning("words count mismatch on %s%% of the lines (%s/%s)", 200.0, 2, 1)
+        logging.getLogger("phonemizer").warning("something else")
+    finally:
+        root.removeHandler(handler)
+    assert seen == ["something else"]
+
+
 def test_a_long_text_is_spoken_in_small_pieces_by_the_local_voice():
     import commands
     seen = []

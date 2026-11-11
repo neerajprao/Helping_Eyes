@@ -35,7 +35,7 @@ import resource
 import sys
 import threading
 import time
-from collections import defaultdict, deque
+from collections import OrderedDict, defaultdict, deque
 from typing import Dict, Iterator, Optional
 
 from dotenv import load_dotenv
@@ -309,10 +309,16 @@ def health() -> dict:
 
 class Speak(BaseModel):
     text: str = ""
+    sid: str = ""
+    gen: int = 0               # goes up each time this browser stops talking (Stop, a new item or page, ...)
 
 
 _tts_hits: Dict[str, deque] = defaultdict(deque)
 TTS_RATE_LIMIT = 60            # speech requests per minute per client (one per sentence)
+TTS_GIVE_UP_S = 30             # the browser stops waiting for the local voice after this long (giveUpMs in app.js)
+# The newest gen seen from each browser. The local voice makes one sentence at a time, so a request that waited
+# while its browser moved on is dropped: its audio would never be played, and every later sentence would wait for it.
+_voice_gen: "OrderedDict[str, int]" = OrderedDict()
 
 
 @app.post("/api/tts")
@@ -328,10 +334,21 @@ def speak(q: Speak, request: Request) -> Response:
         raise HTTPException(429, "Too many speech requests. Please wait a moment.")
     hits.append(now)
     started = time.time()
+    if q.sid:
+        _voice_gen[q.sid] = max(q.gen, _voice_gen.get(q.sid, q.gen))
+        _voice_gen.move_to_end(q.sid)
+        while len(_voice_gen) > 1000:
+            _voice_gen.popitem(last=False)
+
+    def stale() -> bool:
+        return time.time() - started > TTS_GIVE_UP_S or (bool(q.sid) and q.gen < _voice_gen.get(q.sid, q.gen))
     try:
-        audio = commands.synthesize(q.text)
+        audio = commands.synthesize(q.text, stale=stale)
         if time.time() - started > 5:
             logger.warning(f"TTS was slow: {time.time() - started:.1f} s for {len(q.text)} characters")
+    except commands.TtsCancelled:
+        logger.info(f"TTS skipped after {time.time() - started:.1f} s: the browser had moved on")
+        raise HTTPException(409, "This speech is no longer wanted.")
     except commands.TtsError as e:
         logger.error(f"TTS failed: {e}")
         raise HTTPException(502, "The voice service failed.")

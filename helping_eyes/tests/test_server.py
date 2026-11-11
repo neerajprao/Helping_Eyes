@@ -151,12 +151,12 @@ def test_the_page_and_its_files_are_always_revalidated_so_the_html_and_the_scrip
 
 def test_tts_endpoint_returns_audio_and_reports_failure():
     original = server.commands.synthesize
-    server.commands.synthesize = lambda text: b"\xff\xf3audio"
+    server.commands.synthesize = lambda text, stale=None: b"\xff\xf3audio"
     try:
         res = client.post("/api/tts", json={"text": "Hello there."})
         assert res.status_code == 200 and res.headers["content-type"] == "audio/mpeg" and res.content == b"\xff\xf3audio"
 
-        def failing(text):
+        def failing(text, stale=None):
             raise server.commands.TtsError("no network")
         server.commands.synthesize = failing
         assert client.post("/api/tts", json={"text": "Hello there."}).status_code == 502
@@ -166,9 +166,30 @@ def test_tts_endpoint_returns_audio_and_reports_failure():
     assert health["tts"] is True and health["tts_engine"] in ("kokoro", "edge")
 
 
+def test_tts_requests_from_before_the_browser_stopped_talking_are_dropped():
+    def fake(text, stale=None):
+        if stale():
+            raise server.commands.TtsCancelled("moved on")
+        return b"x"
+    original = server.commands.synthesize
+    server.commands.synthesize = fake
+    server._tts_hits.clear()
+    try:
+        post = lambda gen: client.post("/api/tts", json={"text": "Hi.", "sid": "gen-test", "gen": gen}).status_code
+        assert post(0) == 200
+        assert post(1) == 200          # the browser stopped talking once ...
+        assert post(0) == 409          # ... so a request from before that is not spoken
+        assert post(1) == 200
+        assert client.post("/api/tts", json={"text": "Hi."}).status_code == 200      # an older page sends no sid
+    finally:
+        server.commands.synthesize = original
+        server._tts_hits.clear()
+        server._voice_gen.pop("gen-test", None)
+
+
 def test_tts_endpoint_is_rate_limited():
     original = server.commands.synthesize
-    server.commands.synthesize = lambda text: b"x"
+    server.commands.synthesize = lambda text, stale=None: b"x"
     server._tts_hits.clear()
     try:
         codes = [client.post("/api/tts", json={"text": "Hi."}).status_code for _ in range(server.TTS_RATE_LIMIT + 1)]

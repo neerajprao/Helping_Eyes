@@ -60,6 +60,10 @@ let player = null;            // the <audio> element that is playing now
 let serverVoice = true;       // false after a failure, until serverVoiceRetry
 let serverVoiceRetry = 0;
 let serverVoiceFailures = 0;  // sentences in a row that the server voice could not speak
+// Goes up each time the app stops talking. Sent with each voice request, so the server drops the older ones still
+// waiting for its local voice (they would never be played, and every later sentence would wait for them).
+let voiceGen = 0;
+const voiceRequests = new Set();      // AbortControllers of the voice requests on their way
 const PREFETCH = 3;           // sentences fetched ahead, so the voice does not pause between them
 const START_MS = 10000;       // the server voice must start within this long ...
 const STALL_MS = 6000;        // ... and may then be silent for at most this long before the sentence is skipped
@@ -91,7 +95,7 @@ function say(text, { el = null, start = null, optional = false } = {}) {
   if (!text || !text.trim()) return;
   if (start !== null) start += text.length - text.trimStart().length;
   if (srMode) return srSay(text.trim(), start);
-  speechQueue.push({ text: text.trim(), el, start, audio: null, optional });
+  speechQueue.push({ text: text.trim(), el, start, audio: null, optional, gen: voiceGen });
   lastSpeechActivity = performance.now();
   if (recognizer) recognizer.abort();      // the microphone must not hear the app
   prefetch();
@@ -126,13 +130,15 @@ function speakNext() {
 // One request for the audio of a text. A request now and then never answers, so a second one is started when the
 // first is slow (hedgeMs) or has failed, and whichever delivers first wins; everything is given up after giveUpMs.
 let hedgeMs = 3000, giveUpMs = 12000;
-function fetchVoiceBlob(text) {
+function fetchVoiceBlob(text, gen = voiceGen) {
   const controllers = [];
   const request = () => {
+    if (gen !== voiceGen) return Promise.reject(new Error("stopped"));      // a hedge timer after silence()
     const c = new AbortController();
     controllers.push(c);
+    voiceRequests.add(c);
     return fetch("/api/tts", { method: "POST", headers: { "Content-Type": "application/json" },
-                               body: JSON.stringify({ text }), signal: c.signal })
+                               body: JSON.stringify({ text, sid, gen }), signal: c.signal })
       .then(async (res) => {
         if (!res.ok) throw new Error("HTTP " + res.status);
         const blob = await res.blob();
@@ -148,7 +154,7 @@ function fetchVoiceBlob(text) {
   const giveUp = setTimeout(() => controllers.forEach((c) => c.abort()), giveUpMs);
   return Promise.any([first, second]).finally(() => {
     clearTimeout(giveUp);
-    controllers.forEach((c) => c.abort());           // the loser, if there is one
+    controllers.forEach((c) => { c.abort(); voiceRequests.delete(c); });      // the loser, if there is one
   });
 }
 
@@ -160,11 +166,12 @@ function fetchAudio(item) {
     if (!serverVoiceUsable()) return null;
     const fetchStart = performance.now();
     try {
-      const blob = await fetchVoiceBlob(item.text);
+      const blob = await fetchVoiceBlob(item.text, item.gen);
       console.info(`Voice: ${item.text.length} characters ready in ${Math.round(performance.now() - fetchStart)} ms`);
       serverVoiceFailures = 0;
       return URL.createObjectURL(blob);
     } catch (err) {
+      if (item.gen !== voiceGen) return null;          // stopped on purpose (silence()): not a failure of the voice
       console.warn("Server voice failed:", err && err.errors ? err.errors.map((e) => e.message).join("; ") : err.message);
     }
     // This sentence is spoken by the browser's voice, which is the weaker one. One bad sentence must not move
@@ -356,6 +363,9 @@ function silence() {
     turnPrompted = true;
   }
   speechQueue.length = 0;
+  voiceGen++;                                    // the server skips what it has not started yet ...
+  voiceRequests.forEach((c) => c.abort());       // ... and the browser stops waiting for it
+  voiceRequests.clear();
   soundBlocked = null;
   if (speakingNow && speakingNow.stop) speakingNow.stop();      // its timers must not fire into the next sentence
   speakingNow = null;

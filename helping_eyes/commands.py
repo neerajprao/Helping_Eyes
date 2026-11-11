@@ -145,6 +145,20 @@ class TtsError(Exception):
     pass
 
 
+class TtsCancelled(TtsError):
+    """The browser no longer wants this audio (it stopped talking, or gave up waiting), so it is not made."""
+
+
+# The Kokoro voice reads its text with the espeak phonemizer, which warns "words count mismatch" on nearly every
+# sentence (it counts the words of the whole text as one line, so it even reports 1900 %). The speech is fine.
+class _NoWordCountWarnings(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        return "words count mismatch" not in str(record.msg)
+
+
+logging.getLogger("phonemizer").addFilter(_NoWordCountWarnings())
+
+
 # A number above 9999 is nearly always a serial, batch or phone number: say its digits one by one,
 # never "twelve thousand three hundred...". Comma-grouped forms (12,345,678) count too.
 _LONG_NUMBER = re.compile(r"(?<![\d,])(?:\d{1,3}(?:,\d{3})+|\d{5,})(?!\d)")
@@ -200,7 +214,7 @@ def engine():
 
 _kokoro_model = None
 _kokoro_failed = False          # the local voice broke once: the rest of this run uses Edge
-_kokoro_lock = threading.Lock()
+_kokoro_lock = threading.RLock()  # one Kokoro call at a time (held again inside _speak_kokoro, hence re-entrant)
 
 
 def _kokoro():
@@ -244,37 +258,64 @@ def warm_up() -> None:
         logger.info("Voice: the Edge voice (run  python run.py --get-voice  for the local Kokoro voice)")
 
 
-def synthesize(text: str) -> bytes:
-    """MP3 audio of one sentence (a long text is spoken in pieces, joined). Raises TtsError when no voice can speak it."""
+def synthesize(text: str, stale=None) -> bytes:
+    """MP3 audio of one sentence (a long text is spoken in pieces, joined). Raises TtsError when no voice can speak it.
+    stale: a function that says the browser no longer wants this audio; it is asked before each piece is made, and
+    then TtsCancelled is raised instead of making it."""
     text = text.strip()
     if not text:
         raise TtsError("empty text")
     pieces = _pieces(text, KOKORO_PIECE if kokoro_ready() else MAX_CHARS)
     if len(pieces) > 1:
-        return b"".join(_synthesize_piece(p) for p in pieces)      # MP3 frames can simply follow each other
-    return _synthesize_piece(text)
+        return b"".join(_synthesize_piece(p, stale) for p in pieces)      # MP3 frames can simply follow each other
+    return _synthesize_piece(text, stale)
 
 
-def _synthesize_piece(text: str) -> bytes:
-    """MP3 audio of one piece: the Kokoro voice if it is set up, else (or if it fails) the Edge voice."""
-    global _kokoro_failed
+def _cached(text: str) -> bytes:
     with _lock:
         if text in _cache:
             _cache.move_to_end(text)
             return _cache[text]
-    audio = b""
-    if kokoro_ready():
-        try:
-            audio = _speak_kokoro(text)
-        except Exception as e:                          # a missing file, a broken install, ...: use Edge from now on
-            _kokoro_failed = True
-            logger.warning(f"Voice: Kokoro failed ({type(e).__name__}: {e}); using the Edge voice")
-    if not audio:
-        audio = _speak_edge(text)
+    return b""
+
+
+def _remember(text: str, audio: bytes) -> None:
     with _lock:
         _cache[text] = audio
         while len(_cache) > _CACHE_SIZE:
             _cache.popitem(last=False)
+
+
+def _check(stale) -> None:
+    if stale is not None and stale():
+        raise TtsCancelled("the browser no longer wants this audio")
+
+
+def _synthesize_piece(text: str, stale=None) -> bytes:
+    """MP3 audio of one piece: the Kokoro voice if it is set up, else (or if it fails) the Edge voice."""
+    global _kokoro_failed
+    audio = _cached(text)
+    if audio:
+        return audio
+    if kokoro_ready():
+        # Requests wait here for their turn. While one waits, the browser may have stopped talking or sent a second
+        # copy of the same request (after hedgeMs in app.js): so look in the cache and ask stale() only once it is
+        # this request's turn, else abandoned requests pile up and every sentence waits for all of them.
+        with _kokoro_lock:
+            audio = _cached(text)
+            if audio:
+                return audio
+            _check(stale)
+            try:
+                audio = _speak_kokoro(text)
+                _remember(text, audio)
+                return audio
+            except Exception as e:                      # a missing file, a broken install, ...: use Edge from now on
+                _kokoro_failed = True
+                logger.warning(f"Voice: Kokoro failed ({type(e).__name__}: {e}); using the Edge voice")
+    _check(stale)
+    audio = _speak_edge(text)
+    _remember(text, audio)
     return audio
 
 
