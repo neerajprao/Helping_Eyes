@@ -4,21 +4,22 @@
 
 1. [Problem Statement](#problem-statement)
 2. [Introduction](#introduction)
-3. [Objectives](#objectives)
-4. [System Architecture](#system-architecture)
-5. [Design Approach](#design-approach)
-6. [Project Structure](#project-structure)
-7. [Hardware & Software Requirements](#hardware--software-requirements)
-8. [Environment Setup](#environment-setup)
-9. [Installation](#installation)
-10. [Running the System](#running-the-system)
-11. [Usage & Controls](#usage--controls)
-12. [Computer Vision: Book Reading Mode](#computer-vision-book-reading-mode)
-13. [Performance](#performance)
-14. [Innovations](#innovations)
-15. [Known Limitations](#known-limitations)
-16. [References](#references)
-17. [Troubleshooting](#troubleshooting)
+3. [Demo](#demo)
+4. [Objectives](#objectives)
+5. [System Architecture](#system-architecture)
+6. [Design Approach](#design-approach)
+7. [Project Structure](#project-structure)
+8. [Hardware & Software Requirements](#hardware--software-requirements)
+9. [Environment Setup](#environment-setup)
+10. [Installation](#installation)
+11. [Running the System](#running-the-system)
+12. [Usage & Controls](#usage--controls)
+13. [Computer Vision: Book Reading Mode](#computer-vision-book-reading-mode)
+14. [Performance](#performance)
+15. [Innovations](#innovations)
+16. [Known Limitations](#known-limitations)
+17. [References](#references)
+18. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -55,6 +56,28 @@ Core capabilities:
 - **Book reading mode:** a custom computer vision pipeline detects page turns, separates two-page spreads, recognises printed page numbers and running titles on any page, orders columns and paragraphs, and highlights the exact word being read on screen. The language model then reads the page for sense, correcting words the camera misread (only small repairs are accepted), and groups the recognised lines into paragraphs, so a sentence that runs over a line, a column or a page is read without a pause (the words are never changed).
 
 Text recognition (Apple Vision) and layout analysis run on the server, which is your own Mac. Only the captured text (never the picture) is sent to the language model, and only the search words are sent for a web lookup. Speech recognition uses the browser's speech service, and the spoken voice is made on this Mac by Kokoro (nothing is sent); only if Kokoro is not set up does the free Edge voice service get the sentences to be spoken.
+
+## Demo
+
+Real photos from the evaluation set, uploaded with **Upload photo** and asked about in the page (answers from Gemini, as
+shown on screen, 11 November 2026). Each answer was checked against the photo.
+
+**Book mode.** An open two-page spread: the red border is the book found in the picture, the yellow line is the spine,
+the numbers are the reading order across both pages (columns, headings and tables kept in order), and the line being
+read aloud is highlighted.
+
+<img src="demo/book_mode.jpg" width="900" alt="Book mode on an open two-page spread: a red border round the book, a yellow spine line, numbered text blocks 1 to 18 in reading order across both pages, and the line being read highlighted in yellow">
+
+| Medicine box | Tablet strip |
+|---|---|
+| <img src="demo/medicine_box.jpg" width="440" alt="An Azicip medicine box; asked what it is and what it is for, the app answers Azithromycin Oral Suspension, says the label does not state its use and offers to look it up online"> | <img src="demo/medicine_strip.jpg" width="440" alt="A Dapagliflozin tablet strip; asked for the strength, the app answers 10 milligrams"> |
+| *"What is this medicine and what is it for?"* It is Azithromycin Oral Suspension; the label does not say what it is for, so the app offers to look it up online (only if you say yes). | *"What is the strength of these tablets?"* 10 milligrams. |
+| **Food label** | **Personal care** |
+| <img src="demo/food_label.jpg" width="440" alt="An MTR chilli powder packet; asked when it expires, the app answers 08 June 2024 and says it has expired"> | <img src="demo/personal_care.jpg" width="440" alt="An Elovera cream tube held in a hand; asked what it is and how to use it, the app names the cream and says the label gives no instructions"> |
+| *"When does it expire?"* 08 June 2024, which has passed, so it has expired. The date is printed away from its label, and the app's own date check found it. | *"What is this product and how do I use it?"* Elovera Intense Moisturizing Formula cream with hyaluronic acid; the label gives no instructions, and the app says so instead of guessing. |
+| **Document** | |
+| <img src="demo/document.jpg" width="440" alt="A printed page with a hand's shadow across it; asked what the page is about, the app summarises it as the data pipeline for fine-tuning a Qwen model for function calling"> | |
+| *"What is this page about?"* The pipeline and data design for fine-tuning Qwen2.5-1.5B for function calling, read through a hand's shadow. | |
 
 ---
 
@@ -191,6 +214,7 @@ Helping_Eyes-main/
 ├── run.py                  # Runs the whole app on this computer: checks, starts the server, opens Chrome
 ├── requirements.txt        # The only requirements file: every dependency (app, tests and evaluation)
 ├── architecture.png        # The life-cycle diagram shown under System Architecture
+├── demo/                   # The screenshots shown under Demo (real photos uploaded into the page)
 └── README.md
 ```
 
