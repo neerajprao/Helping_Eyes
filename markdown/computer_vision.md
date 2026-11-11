@@ -2,7 +2,7 @@
 
 *Every picture, pixel and bit of math in this project, in very simple words.*
 
-Almost all of the computer vision lives in one file: [helping_eyes/vision.py](helping_eyes/vision.py). It uses **OpenCV** and **NumPy** only. The one exception is reading the letters: that is done by **Apple Vision**, the text reader built into macOS. There is no model to train and no GPU. Everything below is "classic" computer vision: small, clear steps you can follow with a pencil.
+Almost all of the computer vision lives in one file: [helping_eyes/vision.py](../helping_eyes/vision.py). It uses **OpenCV** and **NumPy** only. The one exception is reading the letters: that is done by **Apple Vision**, the text reader built into macOS. There is no model to train and no GPU. Everything below is "classic" computer vision: small, clear steps you can follow with a pencil.
 
 ## Contents
 
@@ -59,7 +59,7 @@ The four parts:
 
 Each part uses the ones before it: D uses C, C uses B, and all use A.
 
-**Where the work happens.** The browser ([web/app.js](helping_eyes/web/app.js)) only *draws and speaks*. It asks the camera for about 1920×1080 (`getUserMedia`), shrinks the frame onto a hidden canvas, and sends it as a **JPEG** to the server. The server turns the JPEG back into numbers with `cv2.imdecode` and makes every decision. Boxes sent back to the browser are **normalised to 0–1**, so they work at any screen size.
+**Where the work happens.** The browser ([web/app.js](../helping_eyes/web/app.js)) only *draws and speaks*. It asks the camera for about 1920×1080 (`getUserMedia`), shrinks the frame onto a hidden canvas, and sends it as a **JPEG** to the server. The server turns the JPEG back into numbers with `cv2.imdecode` and makes every decision. Boxes sent back to the browser are **normalised to 0–1**, so they work at any screen size.
 
 ---
 

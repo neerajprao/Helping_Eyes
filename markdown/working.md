@@ -58,9 +58,14 @@ To run them all: `cd helping_eyes` and then `for t in tests/test_*.py; do python
 
 | File or folder | What it does |
 |---|---|
-| `README.md` | The full project report: problem, design, how to run it, results, limits. It is the only `.md` file in the top folder, so GitHub shows it on the project's front page. |
+| `README.md` | The project's front page on GitHub: the problem, a short introduction, the demo screenshots, the architecture picture, a quick start, the main results and limitations, and links to every guide. It is the only `.md` file in the top folder, so GitHub shows it on the project's front page; the details are in the guides below. |
 | `markdown/` | Every other guide, in one folder: |
 | `markdown/working.md` | This file. |
+| `markdown/setup.md` | Requirements, settings, installation, running and sharing, tests, the evaluation commands and troubleshooting (moved out of the README). |
+| `markdown/usage.md` | Everything you can say or type, and the buttons and keys, in full (moved out of the README). |
+| `markdown/design.md` | The architecture, the design of each part, every file of the project and what is new in it (moved out of the README). |
+| `markdown/book_mode.md` | The computer vision of book mode step by step, and how it was tested (moved out of the README). |
+| `markdown/performance.md` | The measured results on real photos and the real server, and every known limitation (moved out of the README). |
 | `markdown/direction.md` | What each button does and what you can say or type. |
 | `markdown/computer_vision.md` | Every computer vision idea of the project (pixels, maths, each step) in simple words. |
 | `markdown/eval/eval_plan.md`, `markdown/eval/eval_shotlist.md` | The plan for testing the app on real photos (with the decisions taken along the way), and the list of photos to take for it. |

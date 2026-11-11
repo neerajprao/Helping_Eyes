@@ -11,7 +11,7 @@ this file is from the Phase 0 checks or the timing test below, and is labelled a
 1. **Gemini ran over two days.** The free daily limit ran out after 20 of the 46 subset photos; the rest ran the next
    day (54 retries in all, no service error left). Some Gemini streams started and then never finished, so
    `common.ask()` now also counts a reply not finished within 90 s (`CALL_LIMIT`) as a failed call to retry. The
-   app itself is unchanged (listed as a limitation in the README).
+   app itself is unchanged (listed as a limitation in markdown/performance.md).
 2. **The blind judge sample** (100 free-text items) was drawn when Gemini had answered the first 20 photos, so it
    covers those 20 pharmacy photos only.
 3. **Expiry ablation, a fairer second version.** The app's prompt tells the model never to say "expired" unless the
