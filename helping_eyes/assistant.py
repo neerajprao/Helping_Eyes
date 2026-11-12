@@ -7,6 +7,9 @@ Settings (environment or .env); nothing here is specific to one provider:
     LLM_BASE_URL  chat API address (default: Google Gemini's OpenAI-compatible endpoint)
     LLM_API_KEY   the provider's API key
     LLM_MODEL     model name (default: gemini-3.1-flash-lite)
+    LLM_FALLBACK_MODELS  comma-separated models tried, in order, when LLM_MODEL answers "busy" (HTTP 429 or 5xx,
+                  as Google's free tier often does) or does not answer in time (default:
+                  gemini-3.5-flash-lite,gemini-flash-lite-latest; empty: none). A busy model is skipped for 5 minutes.
 
 The page's model menu picks between two providers per request:
     gemini        the settings above
@@ -21,8 +24,9 @@ import os
 import re
 import calendar
 import threading
+import time
 from datetime import date
-from typing import Iterator, List, Optional, Tuple
+from typing import Dict, Iterator, List, Optional, Tuple
 
 import requests
 
@@ -31,6 +35,14 @@ logger = logging.getLogger(__name__)
 LLM_BASE_URL = os.getenv("LLM_BASE_URL", "https://generativelanguage.googleapis.com/v1beta/openai").rstrip("/")
 LLM_API_KEY = os.getenv("LLM_API_KEY", "")
 LLM_MODEL = os.getenv("LLM_MODEL", "gemini-3.1-flash-lite")
+LLM_FALLBACK_MODELS = [m.strip() for m in os.getenv("LLM_FALLBACK_MODELS", "gemini-3.5-flash-lite,gemini-flash-lite-latest").split(",")
+                       if m.strip()]
+BUSY_STATUSES = (429, 500, 502, 503, 504)   # the model is overloaded or out of quota: another one may answer
+BUSY_FOR = 300.0                            # seconds a busy model is tried last
+FIRST_WORD_LIMIT = 8                        # seconds a model gets to start an answer before the next one is asked
+                                            # (a good answer starts in 2-3 s; Google's free tier, on a busy day, took
+                                            # 40 s to start a one-line answer)
+_busy_until: Dict[str, float] = {}          # model name -> time until which it is tried after the others
 
 QWEN_BASE_URL = os.getenv("QWEN_BASE_URL", "http://localhost:11434/v1").rstrip("/")
 QWEN_MODELS = {"qwen3b": os.getenv("QWEN_3B_MODEL", "qwen2.5:3b-instruct")}
@@ -155,7 +167,10 @@ Reply with JSON only: the paragraphs in reading order, each a list of line numbe
 skipped, and the corrected lines (the whole line, an empty object when nothing needs fixing), for example
 {"paragraphs": [[0, 1, 2], [3, 4], [5, 6, 7]], "skip": [8], "fixes": {"4": "the whole of line 4, corrected"}}"""
 
-ARRANGE_TIMEOUT = 12     # seconds the model gets to arrange a page before the page is read as it is
+ARRANGE_TIMEOUT = 6      # seconds an online model gets to arrange a page before the page is read as laid out (a good
+                         # answer took 2.7-3.6 s; Google's busy free tier stalled for 12 s and more, and the reader
+                         # heard nothing all that time). A busy (503) model still hands over to the next one.
+ARRANGE_TIMEOUT_LOCAL = 12   # the same for the local Qwen model, slower but never stalled (about 5 s a page)
 
 MSG_UNREACHABLE = "I can't reach the language model. Please check the internet connection."
 MSG_NO_KEY = "No API key is set for the language model. Please set LLM_API_KEY."
@@ -376,10 +391,51 @@ _PAGE_QUESTION = re.compile(r"^\s*(what|which)\s+page(\s+(is\s+(this|it)|am\s+i\
 
 
 # ---------------- web search ----------------
+# The search engines tried, in order (the ddgs library's names; it scrapes their result pages). On 12 Nov 2026 they
+# came and went from this Mac: Yahoo answered one minute and not the next, DuckDuckGo, Brave, Google, Mojeek, Yandex
+# and Wikipedia's page said "No results found", and ddgs' own "auto" picks a few at random, so a lookup often found
+# nothing. Setting: SEARCH_BACKENDS. When they all find nothing, Wikipedia's official search API is asked
+# (wikipedia_search): not scraped, so it answers reliably, and it knows medicines by their generic names.
+SEARCH_BACKENDS = [b.strip() for b in os.getenv("SEARCH_BACKENDS", "yahoo,startpage,duckduckgo,auto").split(",") if b.strip()]
+WIKIPEDIA_API = "https://en.wikipedia.org/w/api.php"
+
+
+def wikipedia_search(query: str, max_results: int = 3) -> List[dict]:
+    """The opening paragraphs of the Wikipedia articles that best match the query: [{title, href, body}, ...]."""
+    r = requests.get(WIKIPEDIA_API, timeout=10, headers={"User-Agent": "HelpingEyes/1.0 (reading assistant)"}, params={
+        "action": "query", "format": "json", "generator": "search", "gsrsearch": query, "gsrlimit": max_results,
+        "prop": "extracts", "exintro": 1, "explaintext": 1, "exchars": 1200, "redirects": 1})
+    r.raise_for_status()
+    pages = sorted((r.json().get("query") or {}).get("pages", {}).values(), key=lambda p: p.get("index", 0))
+    return [{"title": p["title"], "href": "https://en.wikipedia.org/wiki/" + p["title"].replace(" ", "_"),
+             "body": p.get("extract", "")} for p in pages if p.get("extract")]
+
+
 def web_search(query: str, max_results: int = 5) -> List[dict]:
-    """DuckDuckGo text search: [{title, href, body}, ...]. Only the query leaves the Mac."""
+    """Web text search: [{title, href, body}, ...], from the first engine of SEARCH_BACKENDS that finds anything,
+    else from Wikipedia. Only the query leaves the Mac. Raises when no source could be reached at all."""
     from ddgs import DDGS  # imported here so the app still starts if ddgs is missing
-    return DDGS(timeout=10).text(query, max_results=max_results) or []
+    errors = []
+    for backend in SEARCH_BACKENDS:
+        try:
+            results = DDGS(timeout=10).text(query, max_results=max_results, backend=backend) or []
+        except Exception as e:                       # ddgs raises "No results found" when an engine gives nothing
+            logger.info(f"Web search with {backend} found nothing: {e}")
+            errors.append(e)
+            continue
+        if results:
+            return results
+    try:
+        results = wikipedia_search(query)
+        logger.info(f"Web search engines found nothing; Wikipedia has {len(results)} article(s)")
+        return results
+    except Exception as e:
+        logger.warning(f"Wikipedia search failed: {e}")
+        errors.append(e)
+    real = [e for e in errors if "no results" not in str(e).lower()]
+    if real and len(real) == len(errors):
+        raise real[-1]                               # nothing could be reached (no network): "couldn't search"
+    return []
 
 
 def _why(response) -> str:
@@ -388,6 +444,48 @@ def _why(response) -> str:
         return " ".join(response.text.split())[:300] or "(no details)"
     except Exception:
         return "(no details)"
+
+
+def _models(provider: str) -> List[str]:
+    """The models to try for a provider, in order: LLM_MODEL, then the fallbacks; a model that was busy lately goes last."""
+    if provider in QWEN_MODELS:
+        return [QWEN_MODELS[provider]]
+    models = list(dict.fromkeys([LLM_MODEL, *LLM_FALLBACK_MODELS]))
+    now = time.time()
+    return [m for m in models if _busy_until.get(m, 0) <= now] + [m for m in models if _busy_until.get(m, 0) > now]
+
+
+def _post_chat(provider: str, payload: dict, timeout, stream: bool = False, slow_to_next: bool = True) -> requests.Response:
+    """
+    POST a chat request, trying the provider's models in turn (_models) while they answer "busy" (BUSY_STATUSES).
+    Returns the first other answer, or the last busy one when every model is busy (the caller reports it as before).
+    A model that does not answer within the timeout is marked busy too; with slow_to_next the next model is then
+    asked, otherwise (book pages, which must not wait twice) the timeout is raised.
+    """
+    base, headers, _, _ = _endpoint(provider)
+    models = _models(provider)
+    for i, model in enumerate(models):
+        try:
+            r = requests.post(f"{base}/chat/completions", headers=headers, json={**payload, "model": model},
+                              timeout=timeout, stream=stream)
+            r.answered_by = model
+        except requests.exceptions.Timeout:
+            if provider in QWEN_MODELS:
+                raise
+            _busy_until[model] = time.time() + BUSY_FOR
+            if not slow_to_next or i + 1 == len(models):
+                raise
+            logger.warning(f"{model} did not answer in time: trying {models[i + 1]}")
+            continue
+        if provider in QWEN_MODELS or r.status_code not in BUSY_STATUSES:
+            if i:
+                logger.info(f"Answered by {model} (the models before it were busy)")
+            return r
+        _busy_until[model] = time.time() + BUSY_FOR
+        r.content                                     # keep the error body: it is gone once the connection closes
+        if i + 1 < len(models):
+            logger.warning(f"{model} is busy (HTTP {r.status_code}): trying {models[i + 1]}")
+    return r
 
 
 def _endpoint(provider: str) -> Tuple[str, dict, str, str]:
@@ -556,9 +654,7 @@ class DocAssistant:
     def _search_query(self, question: str, document: str) -> Optional[str]:
         """Ask the model for a short search query that includes the product name."""
         try:
-            base, headers, model, _ = _endpoint(self.provider)
-            r = requests.post(f"{base}/chat/completions", headers=headers, json={
-                "model": model,
+            r = _post_chat(self.provider, {
                 "messages": [{"role": "user", "content": QUERY_PROMPT.format(
                     document=document[:1500], question=question)}],
                 "temperature": 0,
@@ -581,10 +677,11 @@ class DocAssistant:
         if not key and self.provider not in QWEN_MODELS:
             return None
         try:
-            r = requests.post(f"{base}/chat/completions", headers=headers, json={
-                "model": model, "temperature": 0, "max_tokens": 4000,
+            r = _post_chat(self.provider, {
+                "temperature": 0, "max_tokens": 4000,
                 "messages": [{"role": "system", "content": ARRANGE_PROMPT},
-                             {"role": "user", "content": numbered}]}, timeout=(5, ARRANGE_TIMEOUT))
+                             {"role": "user", "content": numbered}]},
+                timeout=(5, ARRANGE_TIMEOUT_LOCAL if self.provider in QWEN_MODELS else ARRANGE_TIMEOUT), slow_to_next=False)
             r.raise_for_status()
             plan = parse_arrangement(r.json()["choices"][0]["message"]["content"] or "", count)
         except Exception as e:
@@ -609,9 +706,8 @@ class DocAssistant:
                     '(example: "can you google ibuprofen side effects" -> "SEARCH: ibuprofen side effects"). '
                     'If they only say to search without a topic (example: "check that online"), reply just "SEARCH"'
                     + (f' (their previous question was "{subject}")' if subject else '') + '. Otherwise reply "OTHER".')
-        base, headers, model, _ = _endpoint(self.provider)
-        r = requests.post(f"{base}/chat/completions", headers=headers, json={
-            "model": model, "temperature": 0, "max_tokens": 40,
+        r = _post_chat(self.provider, {
+            "temperature": 0, "max_tokens": 40,
             "messages": [{"role": "system", "content": task},
                          {"role": "user", "content": text}]}, timeout=20)
         r.raise_for_status()
@@ -637,15 +733,14 @@ class DocAssistant:
         decided = not markers  # whether the reply's opening marker (if any) is known
         base, headers, model, key = _endpoint(self.provider)
         try:
-            with requests.post(
-                f"{base}/chat/completions",
-                headers=headers,
-                json={"model": model, "messages": messages, "stream": True, "temperature": 0.2},
-                stream=True,
-                timeout=(5, 120),
-            ) as r:
+            # The read limit is the wait for the first word, and then between pieces (a stream sends them steadily);
+            # the local Qwen model gets longer, as it may still be loading
+            limit = 120 if self.provider in QWEN_MODELS else FIRST_WORD_LIMIT
+            with _post_chat(self.provider, {"messages": messages, "stream": True, "temperature": 0.2},
+                            timeout=(5, limit), stream=True) as r:
                 if not r.ok:
                     r.content                                  # read the error body now: it is gone once the connection closes
+                model = r.answered_by                          # for the log: a fallback may have answered
                 r.raise_for_status()
                 for raw in r.iter_lines():
                     if generation != self._generation:
@@ -699,10 +794,13 @@ class DocAssistant:
                 yield MSG_NO_KEY                               # providers answer a missing key with 400, 401 or 403
             else:
                 yield (MSG_BAD_KEY if status in (401, 403) else MSG_NO_MODEL if status == 404
-                       else MSG_BUSY if status == 429 else MSG_FAILED)
+                       else MSG_BUSY if status in (429, 503) else MSG_FAILED)
             return
-        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
-            yield MSG_QWEN_DOWN if self.provider in QWEN_MODELS else MSG_UNREACHABLE
+        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
+            if self.provider in QWEN_MODELS:
+                yield MSG_QWEN_DOWN
+            else:                                          # too slow to answer is busy, not unreachable
+                yield MSG_BUSY if isinstance(e, requests.exceptions.Timeout) else MSG_UNREACHABLE
             return
         except Exception as e:
             logger.error(f"Model error: {e}")

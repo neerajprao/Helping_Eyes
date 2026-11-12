@@ -107,13 +107,13 @@ def test_rearm_on_request():
     assert guide.update(FRAME)["state"] == "HOLD"
 
 
-def test_small_text_the_reader_is_unsure_of_says_move_closer_without_repeating():
+def test_small_text_the_reader_is_unsure_of_says_move_closer_every_5_seconds():
     tiny = ((300, 150, 600, 200), [(300, 150 + i * 10, 600, 158 + i * 10) for i in range(4)])
     guide, clock, _ = guide_with(tiny, confidence=0.5)
     assert guide.update(FRAME)["speak"] == "Move closer"
+    clock.advance(4.5)
+    assert guide.update(FRAME)["speak"] == ""           # not again within 5 s
     clock.advance(0.5)
-    assert guide.update(FRAME)["speak"] == ""           # same hint, inside the cooldown
-    clock.advance(2)
     assert guide.update(FRAME)["speak"] == "Move closer"
 
 
@@ -201,14 +201,34 @@ def test_blur_is_coached_then_captured_anyway():
     reply = guide.update(FRAME)
     assert reply["state"] == "COACH" and reply["speak"] == "Hold still, the image is blurry" and not reply["capture"]
     clock.advance(1)
-    assert guide.update(FRAME)["speak"] == ""           # not repeated inside the cooldown
+    assert guide.update(FRAME)["speak"] == ""           # not repeated within 5 s
     clock.advance(vision.QUALITY_PATIENCE)
     assert guide.update(FRAME)["capture"]
 
 
-def test_dark_room_is_announced_when_no_text_is_in_view():
-    guide, _, _ = guide_with(None, problems=["dark"])
+def test_dark_room_is_announced_when_no_text_is_in_view_and_again_every_5_seconds():
+    guide, clock, _ = guide_with(None, problems=["dark"])
     assert guide.update(FRAME)["speak"] == "Low light"
+    clock.advance(3)
+    assert guide.update(FRAME)["speak"] == ""
+    clock.advance(2)
+    assert guide.update(FRAME)["speak"] == "Low light"
+
+
+def test_several_warnings_are_said_one_after_another_and_again_every_5_seconds():
+    tiny = ((300, 150, 600, 200), [(300, 150 + i * 10, 600, 158 + i * 10) for i in range(4)])
+    guide, clock, state = guide_with(tiny, problems=["dark", "blurry"], confidence=0.5)
+    said = []
+    for _ in range(44):                                  # 11 s of frames, 4 a second
+        speak = guide.update(FRAME)["speak"]
+        if speak:
+            said.append((round(clock.t - 100, 2), speak))
+        clock.advance(0.25)
+    every = "Move closer. Low light. Hold still, the image is blurry"     # where to move first, all in one go
+    assert said == [(0, every), (5.0, every), (10.0, every)], said
+    state["problems"] = []                               # the light and the blur are fixed: only the position is left
+    clock.advance(5)
+    assert guide.update(FRAME)["speak"] == "Move closer"
 
 
 # ---------------------------------------------------------------- book pages

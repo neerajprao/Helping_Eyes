@@ -247,7 +247,8 @@ def scenario_silence_keeps_listening(page):
     before = page.js("window.__recs.length")
     page.js("window.__fail('no-speech')")                              # nobody spoke
     page.wait(f"window.__recs.length > {before}")                      # a new listener starts
-    assert page.js("listening") is True and page.js(PRESSED) == "true"
+    # (the blank test camera is "Low light", said every 5 s, and the microphone is shut while the app talks)
+    page.wait(f"listening === true && {PRESSED} === 'true'")
     page.js("window.__fail('aborted')")
     assert page.js("listening") is True
 
@@ -352,16 +353,16 @@ def scenario_the_shutter_button_takes_the_photo_now(page):
 def scenario_book_mode_shows_only_the_camera_stop_and_book_mode(page):
     shown = "(id) => { const e = document.getElementById(id); return !!e && e.getClientRects().length > 0; }"
     where = "(id) => document.getElementById(id).parentElement.className"
-    hidden_in_book = ["question", "answer", "status", "model", "mic", "read-all", "repeat", "capture", "newitem"]
+    hidden_in_book = ["question", "answer", "status", "model", "mic", "read-all", "repeat", "capture"]
     assert page.js(f"({where})('stop')") == "row" and not page.js(f"({shown})('book-panel')")
     page.js("setMode('book')")
     assert page.js(f"({where})('stop')") == "book-controls" and page.js(f"({where})('bookmode')") == "book-controls"
-    assert page.js(f"({shown})('stop') && ({shown})('bookmode') && ({shown})('upload-button') && ({shown})('continue') "
-                   f"&& ({shown})('video')")
-    # Book mode and Upload photo first, Stop and Continue last
+    assert page.js(f"({shown})('stop') && ({shown})('bookmode') && ({shown})('newitem') && ({shown})('upload-button') "
+                   f"&& ({shown})('continue') && ({shown})('video')")
+    # Book mode, New item and Upload photo first, Stop and Continue last
     order = page.js("[...document.querySelectorAll('.book-controls > :is(button, label)')].filter((e) => e.getClientRects().length)"
                     ".map((e) => e.id)")
-    assert order == ["bookmode", "upload-button", "stop", "continue"], order
+    assert order == ["bookmode", "newitem", "upload-button", "stop", "continue"], order
     assert not any(page.js(f"({shown})('{i}')") for i in hidden_in_book)          # no Ask or Answer card, nothing under the camera
     assert page.js("document.getElementById('bookmode').getAttribute('aria-pressed')") == "true"
     page.js("setMode('normal')")                                                    # the usual layout comes back as it was
@@ -389,6 +390,80 @@ def scenario_continue_reads_on_from_the_sentence_where_reading_stopped(page):
     page.js("document.getElementById('continue').click()")
     page.wait("window.__spoken.length > 0")
     assert page.js("window.__spoken[0]").startswith("That was the end of the page"), page.js("window.__spoken")
+
+
+def scenario_new_item_in_book_mode_forgets_the_page_and_starts_over(page):
+    page.wait("cameraReady")
+    page.js("setMode('book')")
+    time.sleep(1.5)
+    page.wait("!bookBusy && ws && ws.readyState === WebSocket.OPEN")
+    page.js("window.__sent = []; const realSend = ws.send.bind(ws); "
+            "ws.send = (m) => { if (typeof m === 'string') window.__sent.push(m); realSend(m); }")   # messages, not camera frames
+    reset = json.dumps({"type": "mode", "mode": "book"}, separators=(",", ":"))
+    # A page half read: New item forgets it here and on the server, and stays in book mode
+    page.js("pageText = 'One two. Three four.'; pageChunks = [{start: 0, text: pageText}]; readPos = 9; stoppedAt = 9; "
+            "turnPrompted = false; window.__spoken.length = 0; window.__asked.length = 0")
+    page.js("document.getElementById('newitem').click()")
+    assert page.js("[pageText, stoppedAt, mode]") == ["", None, "book"]
+    assert page.js("window.__asked") == []                       # not sent as "next", which in book mode is the next page
+    assert page.js("window.__sent") == [reset]
+    page.wait("window.__spoken.length > 0")
+    assert page.js("window.__spoken[0]").startswith("New item."), page.js("window.__spoken")
+    # Pressed while a page is being read on the server: that page is dropped and the server is started over again,
+    # so the view in front of the camera is read afresh
+    page.wait("!bookBusy")
+    page.js("window.__sent.length = 0; pageText = ''; void handleBookEvent('changed')")
+    page.js("document.getElementById('newitem').click()")
+    page.wait("!bookBusy")
+    assert page.js("window.__sent") == [reset, reset], page.js("window.__sent")
+
+
+def scenario_book_mode_capture_keeps_the_photo_until_the_page_is_read(page):
+    page.wait("cameraReady")
+    page.js("setMode('book')")
+    time.sleep(1.5)
+    page.wait("!bookBusy")
+    # The server's page read waits until the test answers it (window.__answerPage(reply)), and each sentence takes
+    # 400 ms to say, so the photo can be checked while the page is read and while it is spoken
+    page.js("""(() => {
+      const f = window.fetch;
+      window.fetch = (url, opts) => String(url).includes('/api/book/page')
+        ? new Promise((resolve) => { window.__answerPage = (r) => resolve(new Response(JSON.stringify(r))); })
+        : f(url, opts);
+      window.Audio = class {           // like a real player: "play" (where reading has got to), then "ended" 400 ms later
+        play() { setTimeout(() => this.onplay && this.onplay(), 0); setTimeout(() => this.onended && this.onended(), 400); return Promise.resolve(); }
+        pause() {}
+      };
+      voiceEl = null;                  // the page keeps one player: the next sentence makes it again from this class
+    })()""")
+    page_reply = {"action": "new", "text": "One two. Three four.", "from_pos": 0, "label": "", "intro": "", "layout": None,
+                  "seconds": 0.1, "chunks": [{"start": 0, "text": "One two."}, {"start": 9, "text": "Three four."}]}
+    on_photo = "uploadView && capturedStill && !document.getElementById('still').hidden && document.getElementById('video').hidden"
+    page.js("document.getElementById('capture').click()")
+    page.wait(on_photo + " && !cameraReady && bookBusy")                     # the photo replaces the camera while it is read
+    page.js(f"window.__answerPage({json.dumps(page_reply)})")
+    page.wait("reading && isSpeaking()")
+    assert page.js(on_photo)                                                 # and stays while it is spoken
+    page.js("document.getElementById('stop').click()")                       # stopped part-way: the photo stays for Continue
+    time.sleep(1)
+    assert page.js(on_photo) and page.js("stoppedAt !== null")
+    page.js("window.__spoken.length = 0; document.getElementById('continue').click()")
+    page.wait("cameraReady && !uploadView", timeout=10)                      # read to the end: the camera comes back
+    assert page.js("window.__spoken[window.__spoken.length - 1]") == "Turn the page.", page.js("window.__spoken")
+    assert page.js("[pageText, readPos === pageText.length]") == ["One two. Three four.", True]   # kept, as read to the end
+    # No text on the photo: it is closed at once, to try again
+    page.wait("!bookBusy")
+    page.js("document.getElementById('capture').click()")
+    page.wait(on_photo + " && bookBusy")
+    page.js("window.__answerPage({action: 'no_text'})")
+    page.wait("cameraReady && !uploadView")
+    # New item closes the photo too
+    page.wait("!bookBusy")
+    page.js("document.getElementById('capture').click()")
+    page.wait(on_photo + " && bookBusy")
+    page.js("document.getElementById('newitem').click()")
+    page.wait("cameraReady && !uploadView && pageText === ''")
+    page.js("window.__answerPage({action: 'no_text'})")
 
 
 def scenario_single_key_shortcuts_press_their_buttons(page):
@@ -482,6 +557,14 @@ def test_book_mode_shows_only_the_camera_and_the_stop_and_book_mode_buttons():
 
 def test_continue_reads_on_from_the_sentence_where_reading_stopped():
     run_scenario(scenario_continue_reads_on_from_the_sentence_where_reading_stopped)
+
+
+def test_new_item_in_book_mode_forgets_the_page_and_starts_over():
+    run_scenario(scenario_new_item_in_book_mode_forgets_the_page_and_starts_over)
+
+
+def test_book_mode_capture_keeps_the_photo_on_screen_until_the_page_is_read():
+    run_scenario(scenario_book_mode_capture_keeps_the_photo_until_the_page_is_read)
 
 
 def test_single_key_shortcuts_press_their_buttons():

@@ -25,8 +25,8 @@ Everything you can say or type, and the buttons and keys. The short version is i
 
 | Key | Button | Action |
 |---|---|---|
-| `C` | Capture now (also the round shutter button on the camera picture) | Capture immediately, with a flash so you see it was taken: the photo stays on the screen and the camera goes off until New item or "next" (in book mode: read the page in view, camera stays on); a second press waits while a photo is being read |
-| `N` | New item | Close the photo that stayed on the screen (or an uploaded one) and go back to the live camera, ready for a new item |
+| `C` | Capture now (also the round shutter button on the camera picture) | Capture immediately, with a flash so you see it was taken: the photo stays on the screen and the camera goes off until New item or "next" (in book mode: the photo of the page stays on the screen while it is read, until it has been read to the end or New item is pressed); a second press waits while a photo is being read |
+| `N` | New item | Close the photo that stayed on the screen (or an uploaded one) and go back to the live camera, ready for a new item. In book mode (where it stays beside the camera): forget the page and read the next steady view from the start, for another book or document |
 | `B` | Book mode | Toggle book mode |
 | `A` | Read everything | Read the full captured text |
 | `R` | Repeat | Repeat the last answer |

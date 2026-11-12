@@ -517,8 +517,8 @@ async function liveLoop() {
     sentAt = performance.now();
     const blob = await frameBlob(960, 0.7);
     if (ws && ws.readyState === WebSocket.OPEN) ws.send(blob); else awaiting = false;
-  } else if (mode === "book" && bookState && !uploadView) {
-    bookTick(bookState, false);       // keep the reading bookkeeping going while no frame is in flight
+  } else if (mode === "book" && (uploadView || bookState)) {
+    bookTick(bookState, false);       // keep the reading bookkeeping going while no frame is in flight (or a photo is shown)
   }
   setTimeout(liveLoop, 100);
 }
@@ -625,7 +625,7 @@ let capturing = false;                                         // a photo is bei
 $("capture").addEventListener("click", async () => {
   if (uploadView && mode === "book") return handleBookEvent("changed");
   if (!uploadView && !video.videoWidth) { setStatus("The camera is not ready yet."); return say("The camera is not ready yet."); }
-  if (mode === "book") return handleBookEvent("changed");
+  if (mode === "book") return captureBookPage();
   if (capturing) return;
   capturing = true;
   paused = true;
@@ -652,6 +652,30 @@ $("capture").addEventListener("click", async () => {
   paused = false;
   capturing = false;
 });
+
+// Book mode: the page in view is photographed, and the photo stays on the screen (the camera off) while it is read,
+// with the reading overlay and highlight, until it has been read to the end (finishCapturedPage brings the camera back
+// for the next page) or New item is pressed. Stop keeps it there, so Continue can read on.
+async function captureBookPage() {
+  if (bookBusy) return;                                        // a page is being read already
+  const blob = await frameBlob(1920, 0.92);
+  if (bookBusy || uploadView || mode !== "book") return;
+  showStill(URL.createObjectURL(blob), true);
+  try { await still.decode(); } catch (err) { return backToCamera(); }
+  const action = await handleBookEvent("changed");
+  if (capturedStill && !["new", "resume", "nothing_new"].includes(action)) backToCamera();   // no text, or it failed: try again
+}
+
+// The photo taken of a page has been read to the end (not stopped part-way): back to the camera for the next page
+function finishCapturedPage() {
+  if (bookBusy || thinking || reading || isSpeaking() || soundBlocked || !pageText || stoppedAt !== null ||
+      readPos < pageText.length) return;
+  // The page is kept, read to the end: if the camera then sees the same page, the server finds nothing new in it
+  // instead of reading it again from the start; a page turn reads the next one
+  backToCamera(true);
+  turnPrompted = true;
+  say("Turn the page.");
+}
 
 // An uploaded photo: shown in place of the camera, with the same overlay
 let capturedStill = false;     // the still is a photo just taken with the camera (not an uploaded one)
@@ -691,7 +715,7 @@ function drawPhotoQuality(ctx, W, H, bottom) {
             q.problems.length ? COLORS.problem : COLORS.idle, "13px sans-serif");
 }
 
-function backToCamera() {
+function backToCamera(keepPage = false) {
   if (!uploadView) return;
   uploadView = false;
   capturedStill = false;
@@ -700,13 +724,13 @@ function backToCamera() {
   if ((still.getAttribute("src") || "").startsWith("blob:")) URL.revokeObjectURL(still.getAttribute("src"));
   still.removeAttribute("src");
   $("back-to-camera").hidden = true;
-  resetBook();
+  if (!keepPage) resetBook();
   if (cameraFailed) return cameraUnavailable(cameraFailed);
   video.hidden = false;
   setStatus("Starting the camera…");
   startCamera(false);
 }
-$("back-to-camera").addEventListener("click", backToCamera);
+$("back-to-camera").addEventListener("click", () => backToCamera());
 
 $("upload").addEventListener("change", async (e) => {
   const file = e.target.files[0];
@@ -748,17 +772,19 @@ let bookBusy = false;
 let pendingTurn = false;      // a page turn was seen while reading: read the new page when this one is done
 let pageChunks = [];          // the page's spoken pieces from the server: {start, text}, start = offset in pageText
 let stoppedAt = null;         // where reading was stopped mid-page (Continue carries on there), or null
+let bookRun = 0;              // goes up at every reset: a page read that was asked for before it is dropped
 
 function resetBook() {
+  bookRun++;
   pageText = ""; pageLayout = null; pageLabel = ""; readPos = 0; lastChunkStart = 0;
   reading = false; turnPrompted = true; bookState = null; pageChunks = []; stoppedAt = null;
   setBookZoom(null);            // the whole camera picture again
 }
 
-// Book mode shows only the camera and, beside it, Book mode, Upload photo (and Back to camera while a photo is shown),
-// then Stop and Continue last. The buttons themselves are moved (not copied), so their handlers, shortcuts and
-// pressed state stay the same; a marker keeps each one's usual place. Continue lives in the panel.
-const bookControls = ["bookmode", "upload", "upload-button", "back-to-camera", "stop"].map((id) => {
+// Book mode shows only the camera and, beside it, Book mode, New item, Upload photo (and Back to camera while a photo
+// is shown), then Stop and Continue last. The buttons themselves are moved (not copied), so their handlers, shortcuts
+// and pressed state stay the same; a marker keeps each one's usual place. Continue lives in the panel.
+const bookControls = ["bookmode", "newitem", "upload", "upload-button", "back-to-camera", "stop"].map((id) => {
   const button = $(id), home = document.createComment(id);
   button.before(home);
   return { button, home };
@@ -797,7 +823,7 @@ function bookTick(reply, fresh) {
   const readingNow = reading && isSpeaking();
   // While a page is being read, nothing the camera sees (the book moving, a hand, a page turn) interrupts it:
   // it stops only when asked to, or when the page is done. A page turn seen meanwhile is read afterwards.
-  if (uploadView) return;
+  if (uploadView) { if (capturedStill) finishCapturedPage(); return; }
   if (fresh && reply.event && readingNow) { if (reply.event === "changed") pendingTurn = true; return; }
   if (!readingNow && pendingTurn && !bookBusy && !thinking) { pendingTurn = false; return handleBookEvent("changed"); }
   if (fresh && reply.event && !bookBusy) return handleBookEvent(reply.event);
@@ -836,9 +862,21 @@ function continueReading() {
 }
 $("continue").addEventListener("click", continueReading);
 
+// New item in book mode: forget the page (here and on the server) and read whatever is held up next from its first
+// word, even the same page again. Saying "next" still means the next page of the same book: it keeps the page.
+function newBookItem() {
+  stopSpeaking();
+  resetBook();
+  backToCamera();                               // an uploaded photo is closed
+  wsSend({ type: "mode", mode: "book" });       // the server forgets the page and reads the next steady view
+  setStatus("Ready for a new item.");
+  say("New item. Hold it open in front of the camera, and I'll read it from the start.");
+}
+
 // The page view became steady (a page turn or the view moved): read it on the server, then speak
 async function handleBookEvent(event) {
   if (bookBusy) return;
+  const run = bookRun;
   bookBusy = true;
   paused = true;
   setStatus("Reading the page…");
@@ -853,7 +891,7 @@ async function handleBookEvent(event) {
     const res = await fetch("/api/book/page", { method: "POST", body: form });
     if (!res.ok) throw new Error(await failure(res));
     const r = await res.json();
-    if (mode !== "book") return;
+    if (mode !== "book" || run !== bookRun) return;     // book mode was left, or New item pressed, meanwhile
 
     if (r.action === "new" || r.action === "resume") {
       pageText = r.text; pageLayout = r.layout; pageLabel = r.label || "";
@@ -884,12 +922,16 @@ async function handleBookEvent(event) {
       setBookZoom(null);          // the book left the view: show the whole camera picture, so it can be found again
     }
     // "keep": the same page barely moved while reading: nothing changes
+    return r.action;
   } catch (err) {
     setStatus("Could not read the page: " + problem(err));
     say("Could not read the page. " + problem(err));
   } finally {
     bookBusy = false;
     paused = false;
+    // A read dropped by New item may have reached the server after its reset, and the page view it saw was steady
+    // already, so no new event comes: start the server over again so the view in front of the camera is read
+    if (run !== bookRun && mode === "book") wsSend({ type: "mode", mode: "book" });
   }
 }
 
@@ -978,7 +1020,7 @@ $("ask-form").addEventListener("submit", (e) => {
 $("read-all").addEventListener("click", () => ask("read everything"));
 $("repeat").addEventListener("click", () => ask("repeat"));
 $("stop").addEventListener("click", stopSpeaking);
-$("newitem").addEventListener("click", () => ask("next"));
+$("newitem").addEventListener("click", () => (mode === "book" ? newBookItem() : ask("next")));
 $("bookmode").addEventListener("click", () => ask(mode === "book" ? "normal mode" : "book mode"));
 $("offer-yes").addEventListener("click", () => ask("yes"));
 $("offer-no").addEventListener("click", () => { hideOffer(); ask("no"); });
@@ -988,7 +1030,7 @@ const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 let recognizer = null;
 let listening = false;        // the user turned listening on
 let micFailures = 0;          // speech errors in a row that are not just "nobody spoke"
-const ECHO_GUARD = 700;       // ms after the app stops talking before the microphone listens
+const ECHO_GUARD = 100;       // ms after the app stops talking before the microphone listens
 
 // What each speech error means, in words the user can act on
 const MIC_HELP = {
@@ -1339,7 +1381,7 @@ function drawBookBar(ctx, W, H) {
   ctx.fillStyle = PLATE; ctx.fillRect(0, H - bar, W, bar);
   const s = bookState;
   ctx.fillStyle = COLORS.text; ctx.font = "bold 16px sans-serif";
-  ctx.fillText(`BOOK MODE   ${pageLabel || "Page -"}   ${bookBusy ? "READING PAGE..." : uploadView ? "UPLOADED PHOTO" : s ? s.state : "WAITING"}   ` +
+  ctx.fillText(`BOOK MODE   ${pageLabel || "Page -"}   ${bookBusy ? "READING PAGE..." : capturedStill ? "CAPTURED   N = new item" : uploadView ? "UPLOADED PHOTO" : s ? s.state : "WAITING"}   ` +
     (s && !uploadView ? `motion ${s.motion} (still < ${s.still_below})   ` : "") + "B = exit", 15, H - 14);
 }
 

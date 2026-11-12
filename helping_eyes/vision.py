@@ -205,20 +205,26 @@ class QualityReport:
     def ok(self) -> bool:
         return not self.problems
 
-    def hint(self) -> str:
-        """One short spoken instruction for the most important problem ("" when fine)."""
+    def hints(self) -> List[Tuple[str, str]]:
+        """(problem, short spoken instruction) for every problem found, the most important first."""
+        out = []
         if "dark" in self.problems:
-            return "Low light"
+            out.append(("dark", "Low light"))
         if "glare" in self.problems and self.glare_at is not None:
             gx, gy = self.glare_at
             side = "on the right" if gx > 0.62 else "on the left" if gx < 0.38 else \
                    "at the bottom" if gy > 0.62 else "at the top" if gy < 0.38 else "in the middle"
-            return f"Glare {side}. Tilt the page"
+            out.append(("glare", f"Glare {side}. Tilt the page"))
         if "blurry" in self.problems:
-            return "Hold still, the image is blurry"
+            out.append(("blurry", "Hold still, the image is blurry"))
         if "bright" in self.problems:
-            return "Too bright. Move away from the light"
-        return ""
+            out.append(("bright", "Too bright. Move away from the light"))
+        return out
+
+    def hint(self) -> str:
+        """The instruction for the most important problem ("" when fine)."""
+        hints = self.hints()
+        return hints[0][1] if hints else ""
 
     def summary(self) -> str:
         return (f"sharp {self.sharpness:.0f}  light {self.brightness:.0f}  "
@@ -913,8 +919,15 @@ class PageTurnDetector:
 
     @staticmethod
     def _small_gray(frame: np.ndarray) -> np.ndarray:
-        g = cv2.cvtColor(cv2.resize(frame, (320, 180)), cv2.COLOR_BGR2GRAY)
-        return cv2.GaussianBlur(g, (5, 5), 0)
+        # Small and well blurred: a hand-held camera shakes by a few pixels between frames, which over fine print
+        # looked like movement (a still phone measured 3.6-4.3, over the "still" line), so a page could take many
+        # seconds to count as steady, or never did at the page's real 4-5 frames a second. Blurred, that shake
+        # nearly vanishes, while a hand or a page sweeping through still changes the picture a lot. On the real
+        # page-turn video (4 turns, 5 pages) this finds all 5 pages at 4.8 frames a second (4 before), and 3 at 3 and
+        # 4 frames a second (0 and 1 before), as on a phone over the internet; at 6 and 8 a second, 6 (one early read
+        # while the hand was still turning, as before at 8).
+        g = cv2.cvtColor(cv2.resize(frame, (160, 90), interpolation=cv2.INTER_AREA), cv2.COLOR_BGR2GRAY)
+        return cv2.GaussianBlur(g, (9, 9), 0)
 
     @staticmethod
     def signature(frame: np.ndarray) -> np.ndarray:
@@ -1934,9 +1947,8 @@ HOLD_TIME = 0.5            # seconds the text must stay steady before capturing
 REARM_AFTER = 1.5          # seconds with no text in view before a new capture is allowed
 QUALITY_PATIENCE = 3.0     # seconds to coach about blur / glare before capturing anyway
 MOVED_SAME_PAGE = 0.12     # book mode: a moved view sharing this much text with the page being read is the same page
-QUALITY_COOLDOWN = 5.0     # seconds between spoken image-quality hints
-LOW_LIGHT_COOLDOWN = 30.0  # "Low light" is said at most once in this many seconds
-HINT_COOLDOWN = 2.0        # seconds before the same position hint is spoken again
+WARNING_EVERY = 5.0        # spoken warnings (position, light, glare, blur): all that apply are said one straight after
+                           # another, and the whole set again every 5 s while it is still needed
 GUIDE_MARGIN_X = 30 / 1280  # the guide box, as fractions of the frame
 GUIDE_MARGIN_Y = 20 / 720
 GUIDE = (GUIDE_MARGIN_X, GUIDE_MARGIN_Y, 1 - GUIDE_MARGIN_X, 1 - GUIDE_MARGIN_Y)
@@ -1968,10 +1980,8 @@ class LiveGuide:
         self.is_stable = False
         self.stable_start = 0.0
         self.last_text_seen = self._clock()
-        self.last_hint = ""
-        self.last_hint_time = 0.0
-        self.last_quality_hint_time = 0.0
-        self.last_low_light_time = -1e9
+        self.last_warning = ""             # the problems warned about last ("position,dark,glare", ...)
+        self.last_warning_time = -1e9
         self.quality = QualityReport()
 
     def rearm(self) -> None:
@@ -2022,20 +2032,13 @@ class LiveGuide:
             return "Move Up" if cy > gcy else "Move Down"
         return ""
 
-    def _coach_quality(self, now: float) -> str:
-        hint = self.quality.hint()
-        if not hint:
+    def _warn(self, now: float, warnings: List[Tuple[str, str]]) -> str:
+        """What to speak now ("" for nothing): every warning that applies, one straight after another in one go
+        (most important first), and the whole set again every WARNING_EVERY seconds while it is still needed."""
+        if not warnings or now - self.last_warning_time < WARNING_EVERY:
             return ""
-        if hint == "Low light":
-            if now - self.last_low_light_time <= LOW_LIGHT_COOLDOWN:
-                return ""
-            self.last_low_light_time = now
-            self.last_quality_hint_time = now
-            return hint
-        if now - self.last_quality_hint_time > QUALITY_COOLDOWN:
-            self.last_quality_hint_time = now
-            return hint
-        return ""
+        self.last_warning, self.last_warning_time = ",".join(p for p, _ in warnings), now
+        return ". ".join(text for _, text in warnings)
 
     # ---- one frame ----
     def update(self, frame: np.ndarray) -> dict:
@@ -2078,20 +2081,19 @@ class LiveGuide:
                     # Coach for a moment; if it doesn't improve, capture anyway
                     # (the enhancement layer then tries corrected versions of the frame)
                     reply.update(state="COACH", label=self.quality.hint().upper(),
-                                 speak=self._coach_quality(now))
+                                 speak=self._warn(now, self.quality.hints()))
                 else:
                     reply.update(state="CAPTURING", label="CAPTURING...", capture=True)
                     self.is_stable = False
             else:
                 self.is_stable = False
                 reply.update(state="ADJUST", label="ADJUST POSITION")
-                if hint and (hint != self.last_hint or now - self.last_hint_time > HINT_COOLDOWN):
-                    reply["speak"] = hint
-                    self.last_hint, self.last_hint_time = hint, now
+                # Where to move first, then the picture's problems (light, glare, blur), in turn
+                reply["speak"] = self._warn(now, ([("position", hint)] if hint else []) + self.quality.hints())
         else:
             self.is_stable = False
-            if "dark" in self.quality.problems:
-                reply["speak"] = self._coach_quality(now)
+            if "dark" in self.quality.problems:          # no text to judge the rest by: only the light is said
+                reply["speak"] = self._warn(now, [w for w in self.quality.hints() if w[0] == "dark"])
         return reply
 
 

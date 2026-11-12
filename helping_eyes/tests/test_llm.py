@@ -10,6 +10,7 @@ import json
 import os
 import sys
 import threading
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))   # the application modules
@@ -21,9 +22,13 @@ TEXT = "PARACETAMOL 500 mg TABLETS\nTake two tablets every six hours\nEXP: 04/20
 
 
 class Fake(BaseHTTPRequestHandler):
-    """A model server: replies as the test says (Fake.reply / Fake.status) and records what it was sent."""
+    """A model server: replies as the test says (Fake.reply / Fake.status) and records what it was sent.
+    Fake.busy: model names that answer 503 "high demand", as Google's free tier does; Fake.slow: names that wait
+    2 s before answering at all."""
     reply = ""
     status = 200
+    busy = set()
+    slow = set()
     requests = []          # (headers, body) of every call
 
     def log_message(self, *args):
@@ -32,8 +37,10 @@ class Fake(BaseHTTPRequestHandler):
     def do_POST(self):
         body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
         Fake.requests.append((dict(self.headers), body))
-        if Fake.status != 200:
-            self.send_response(Fake.status)
+        if body.get("model") in Fake.slow:
+            time.sleep(2)
+        if Fake.status != 200 or body.get("model") in Fake.busy:
+            self.send_response(Fake.status if Fake.status != 200 else 503)
             self.end_headers()
             return
         if not body.get("stream"):                       # e.g. the web search query
@@ -61,7 +68,8 @@ BASE = f"http://127.0.0.1:{server.server_address[1]}"
 
 def setup(reply="", status=200, key="test-key"):
     da.LLM_BASE_URL, da.LLM_API_KEY, da.LLM_MODEL = BASE, key, "some-model"
-    Fake.reply, Fake.status, Fake.requests = reply, status, []
+    da.LLM_FALLBACK_MODELS, da._busy_until = [], {}
+    Fake.reply, Fake.status, Fake.requests, Fake.busy, Fake.slow = reply, status, [], set(), set()
     doc = DocAssistant()
     doc.set_document(TEXT)
     return doc
@@ -151,7 +159,7 @@ def test_no_key_means_no_authorization_header():
 
 
 def test_provider_problems_are_spoken_plainly():
-    for status, message in [(401, da.MSG_BAD_KEY), (403, da.MSG_BAD_KEY), (404, da.MSG_NO_MODEL), (429, da.MSG_BUSY), (500, da.MSG_FAILED)]:
+    for status, message in [(401, da.MSG_BAD_KEY), (403, da.MSG_BAD_KEY), (404, da.MSG_NO_MODEL), (429, da.MSG_BUSY), (503, da.MSG_BUSY), (500, da.MSG_FAILED)]:
         doc = setup(status=status)
         assert list(doc.ask("how many?")) == [message], status
     for status in (400, 401, 403):                       # no key set: say so, whatever the provider answers
@@ -159,6 +167,81 @@ def test_provider_problems_are_spoken_plainly():
     doc = setup()
     da.LLM_BASE_URL = "http://127.0.0.1:9"               # nothing is listening there
     assert list(doc.ask("how many?")) == [da.MSG_UNREACHABLE]
+
+
+def test_a_busy_model_hands_over_to_the_next_one_and_is_skipped_for_a_while():
+    doc = setup("Two tablets.")
+    da.LLM_FALLBACK_MODELS = ["spare-model", "last-model"]
+    Fake.busy = {"some-model"}                            # the main model answers 503 "high demand"
+    assert list(doc.ask("how much?")) == ["Two tablets."]
+    assert [body["model"] for _, body in Fake.requests] == ["some-model", "spare-model"]
+    Fake.requests = []
+    assert list(doc.ask("and how often?")) == ["Two tablets."]
+    assert [body["model"] for _, body in Fake.requests] == ["spare-model"]   # the busy one is not asked again yet
+    da._busy_until = {}                                   # five minutes later: the main model is first again
+    Fake.busy, Fake.requests = set(), []
+    assert list(doc.ask("again?")) == ["Two tablets."] and Fake.requests[0][1]["model"] == "some-model"
+    # Every model busy: said plainly, after one request to each
+    Fake.busy, Fake.requests = {"some-model", "spare-model", "last-model"}, []
+    da._busy_until = {}
+    assert list(doc.ask("how much?")) == [da.MSG_BUSY]
+    assert [body["model"] for _, body in Fake.requests] == ["some-model", "spare-model", "last-model"]
+    # The web search words come from the spare model too
+    da._busy_until, Fake.requests = {}, []
+    Fake.busy = {"some-model"}
+    Fake.reply = "paracetamol uses"
+    assert doc._search_query("what is it for?", TEXT) == "paracetamol uses"
+    assert Fake.requests[-1][1]["model"] == "spare-model"
+
+
+def test_a_model_too_slow_to_start_answering_hands_over_to_the_next_one():
+    doc = setup("Two tablets.")
+    da.LLM_FALLBACK_MODELS = ["spare-model"]
+    Fake.slow = {"some-model"}                            # takes 2 s to say anything; the limit is 0.5 s here
+    limit, da.FIRST_WORD_LIMIT = da.FIRST_WORD_LIMIT, 0.5
+    try:
+        started = time.time()
+        assert list(doc.ask("how much?")) == ["Two tablets."]
+        assert time.time() - started < 1.8                # the spare answered; nobody waited for the slow one
+        assert [body["model"] for _, body in Fake.requests] == ["some-model", "spare-model"]
+        Fake.slow = {"some-model", "spare-model"}         # all of them slow: said plainly
+        da._busy_until = {}
+        assert list(doc.ask("how much?")) == [da.MSG_BUSY]
+    finally:
+        da.FIRST_WORD_LIMIT = limit
+
+
+def test_web_search_tries_the_next_engine_and_then_wikipedia():
+    import ddgs
+    asked = []
+
+    class Engines:                                    # ddgs: only the engines in `working` find anything
+        working = {"startpage"}
+
+        def __init__(self, timeout=10):
+            pass
+
+        def text(self, query, max_results=5, backend="auto"):
+            asked.append(backend)
+            if backend not in Engines.working:
+                raise Exception("No results found.")
+            return [{"title": backend, "href": "", "body": "found"}]
+
+    original_ddgs, original_wiki = ddgs.DDGS, da.wikipedia_search
+    ddgs.DDGS = Engines
+    da.wikipedia_search = lambda query: [{"title": "Azithromycin", "href": "", "body": "An antibiotic."}]
+    try:
+        assert da.web_search("azithromycin uses")[0]["title"] == "startpage"
+        assert asked == ["yahoo", "startpage"]                 # the first engine found nothing: the next one did
+        Engines.working, asked[:] = set(), []
+        assert da.web_search("azithromycin uses")[0]["title"] == "Azithromycin"   # none did: Wikipedia
+        assert asked == da.SEARCH_BACKENDS
+        def offline(query):
+            raise OSError("network is down")
+        da.wikipedia_search = offline
+        assert da.web_search("azithromycin uses") == []          # nothing found anywhere: "found nothing useful"
+    finally:
+        ddgs.DDGS, da.wikipedia_search = original_ddgs, original_wiki
 
 
 def test_the_providers_own_explanation_of_an_error_is_logged():

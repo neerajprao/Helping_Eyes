@@ -521,13 +521,15 @@ In book mode nobody presses a button. The camera watches the book, and when a ne
 
 ### 9.1 Measuring motion (frame differencing)
 
-Shrink each frame to **320×180**, grey, light blur. Then:
+Shrink each frame to **160×90**, grey, blurred (9×9). Then:
 
 ```
 motion = average of | this_frame − previous_frame |      (cv2.absdiff, then mean)
 ```
 
 If nothing moved, every pixel difference is near zero. A hand or turning page makes large differences.
+
+The picture is small and well blurred on purpose: a phone held in the hand shakes by a few pixels between frames, and over fine print that measured 3.6–4.3 at 320×180, above the "still" line, so at the page's real 4–5 frames a second a page could take many seconds to count as steady, or never did. At 160×90 with a 9×9 blur the shake nearly vanishes while a hand or page still changes the picture a lot: on the real page-turn video (4 turns, 5 pages) all 5 pages are found at 4.8 frames a second (4 before), and 3 at 3 and 4 frames a second (0 and 1 before).
 
 Two guards against false alarms:
 
@@ -736,7 +738,7 @@ The XY-cut cannot read the meaning, so it makes false paragraph breaks: a senten
 4b. `fix_is_safe()` then checks each fix against the line as read: at least 60 % of the letters must match (`difflib.SequenceMatcher`), the length may change by at most about 30 %, and the word count by at most a quarter. A fix that rewrites or adds to a line is refused and the line is read as the camera saw it. On the 5 real book photos the model's fixes were taken 64 times and refused once (it tried to add words not in the picture). Most were clear (`chargos` → `charges`, `emplovee on transter` → `employee on transfer`); some fill in letters cut off at the page edge (`notion` → `Stagnation`), which is a good guess rather than a certainty.
 5. `regroup()` rebuilds the text from the lines, with the accepted fixes in place (paragraphs joined by a blank line, lines by a space, hyphenated words joined), and recomputes every character position. A corrected line's words take the boxes of the read words at the same place in the line, so the word highlight still lands on them. The paragraph boxes are rebuilt too (a rotated rectangle around the lines, found with `cv2.minAreaRect`).
 
-If there is no key, the model is slow (12 s), the page has more than 250 lines, or the reply fails the check, nothing changes and the page is read with the XY-cut paragraphs and the words as read. The corrected text is also what the model answers questions from. With the local Qwen model this step usually times out on real book pages (their prompts are 4,000 to 6,000 tokens, more than Qwen's 4,096-token window), so the words are checked only with Gemini. The result is remembered by the page's lines, so the same page is not sent twice.
+If there is no key, the model is slow (6 s online, 12 s for the local Qwen), the page has more than 250 lines, or the reply fails the check, nothing changes and the page is read with the XY-cut paragraphs and the words as read. The corrected text is also what the model answers questions from. With the local Qwen model this step usually times out on real book pages (their prompts are 4,000 to 6,000 tokens, more than Qwen's 4,096-token window), so the words are checked only with Gemini. The result is remembered by the page's lines, so the same page is not sent twice.
 
 ---
 
@@ -807,7 +809,7 @@ All distances scale with `height / 720`, so they work at any resolution.
 - **COACH**: if the frame is **blurry** or has **glare**, coach for up to **3 s** (`QUALITY_PATIENCE`); if it does not improve, take the photo anyway (Part B's extra versions then try to rescue it).
 - **CAPTURING**: tell the browser to take the full-size photo.
 - **CAPTURED**: stay quiet until the item **leaves the view for 1.5 s** (`REARM_AFTER`), then be ready for the next one.
-- **Not too chatty**: the same position hint repeats only after 2 s; a quality hint at most every 5 s; "Low light" at most every 30 s.
+- **All warnings together, every 5 s** (`WARNING_EVERY`): position, light, glare and blur warnings share one timer. Every warning that applies is said one straight after another in one go, where to move first, then the light, glare, blur and brightness ("Move closer. Low light. Hold still, the image is blurry."), and the whole set again every 5 s while it is still needed. With no text in view only "Low light" is said.
 
 ---
 
@@ -876,7 +878,7 @@ Comparison with the app's own glare test:
 | skew range **±25°**, steps 1° then 0.1° | `estimate_skew` | search for the level angle |
 | skew **≥ 1.5°** and **+15 %** better | `estimate_skew` | only fix real slant |
 | CLAHE clip **2.0**, 8×8 tiles | `enhance_tone` | local contrast |
-| 320×180 frames | `PageTurnDetector` | motion is measured on a small picture |
+| 160×90 frames, 9×9 blur | `PageTurnDetector` | motion is measured on a small, blurred picture (hand shake ignored) |
 | median of **5** | motion | one noisy frame is ignored |
 | noise `0.95/0.05` | motion | slow learning of the camera's still level |
 | moving **noise + 3**, still **noise + 1.5** | hysteresis | no flicker |

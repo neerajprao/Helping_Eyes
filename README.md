@@ -138,7 +138,7 @@ Measured on 164 real photos and the real server on an M3 Pro MacBook; details in
 | "Has it expired?" decided by the app's date check | 22 / 22 |
 | Capture of a label, median | 0.29 s |
 | Question → start of the spoken answer, Qwen on the Mac, median | 1.37 s |
-| Automated tests | 175, plus 17 for the evaluation's scoring rules |
+| Automated tests | 181, plus 17 for the evaluation's scoring rules |
 
 ---
 
